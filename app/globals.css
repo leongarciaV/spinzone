@@ -11,6 +11,8 @@ button { color: inherit; }
 .eyebrow, .label { color: #b7ff30; font-size: 12px; font-weight: 900; letter-spacing: .18em; }
 h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; letter-spacing: -.055em; }
 .sensor-button { border: 1px solid #303530; background: #151815; border-radius: 99px; padding: 13px 18px; white-space: nowrap; }
+.music-button { border: 1px solid #5b3035; background: #251417; border-radius: 99px; padding: 13px 18px; color: #ff9ca8; text-decoration: none; white-space: nowrap; }
+.music-button span { margin-right: 5px; font-size: 16px; }
 .cast-button { border: 1px solid #3c5130; background: #182016; border-radius: 99px; padding: 13px 18px; color: #caff77; white-space: nowrap; }
 .cast-button span { display: inline-block; margin-right: 6px; transform: rotate(180deg); }
 .sensor-button:disabled { cursor: default; }
@@ -100,8 +102,9 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .template-card h3 { margin: 12px 0 5px; font-size: 18px; }
 .template-card p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.4; }
 .template-card small { margin-top: auto; color: #b8beb6; }
-.template-profile { display: flex; align-items: stretch; height: 64px; margin: 2px 0 14px; overflow: hidden; border-bottom: 2px solid #b7ff30; background: repeating-linear-gradient(to top, #2a302a 0, #2a302a 1px, transparent 1px, transparent 25%); }
-.template-profile i { min-width: 2px; height: 100%; background: linear-gradient(180deg, #f5f7f2cc, #b7ff3025); filter: drop-shadow(0 -2px 0 #f5f7f2); }
+.template-profile { display: flex; align-items: stretch; height: 72px; margin: 2px 0 5px; overflow: hidden; border: 1px solid #ffffff20; border-radius: 8px; background: linear-gradient(to bottom, #ef4444 0 20%, #f97316 20% 40%, #facc15 40% 60%, #65d83f 60% 80%, #1db7d8 80% 100%); }
+.template-profile i { min-width: 2px; height: 100%; background: linear-gradient(180deg, #090b0975, #090b09d4); filter: drop-shadow(0 -2px 0 #fff); }
+.template-zone-key { display: flex; justify-content: space-between; margin-bottom: 12px; padding: 0 2px; font-size: 9px; font-weight: 900; }
 .template-card button { margin-top: 14px; padding: 9px 11px; border: 1px solid #41543a; border-radius: 8px; background: #1c2818; color: #b7ff30; font-weight: 800; }
 .difficulty { align-self: flex-start; padding: 5px 8px; border-radius: 99px; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .difficulty.media { color: #79def2; background: #12323a; }
@@ -150,6 +153,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .app-shell { padding: 22px 14px 100px; }
   .topbar { flex-direction: column; }
   .topbar-actions { width: 100%; flex-direction: column; align-items: stretch; }
+  .music-button { width: 100%; text-align: center; }
   .cast-button { width: 100%; }
   .sensor-button { width: 100%; }
   .chart { height: 260px; }

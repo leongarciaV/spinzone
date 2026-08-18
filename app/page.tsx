@@ -340,6 +340,9 @@ export default function Home() {
           <h1>Entrena por pulso,<br />no por adivinanzas.</h1>
         </div>
         <div className="topbar-actions">
+          <a className="music-button" href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="Abrir YouTube Music en una pestaña nueva">
+            <span aria-hidden="true">♫</span> YouTube Music
+          </a>
           <button className="cast-button" type="button" onClick={() => setShowProjectionHelp(true)}>
             <span aria-hidden="true">▣</span> Proyectar al TV
           </button>
@@ -538,13 +541,16 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
               <span className={`difficulty ${template.difficulty.toLowerCase()}`}>{template.difficulty}</span>
               <h3>{template.name}</h3>
               <p>{template.focus}</p>
-              <div className="template-profile" role="img" aria-label={`Perfil cardiaco de ${template.name}`}>
+              <div className="template-profile" role="img" aria-label={`Perfil cardiaco por zonas de ${template.name}: azul zona 1, verde zona 2, amarillo zona 3, naranja zona 4 y rojo zona 5`}>
                 {template.segments.map((segment, index) => (
                   <i key={`${segment.name}-${index}`} style={{
                     flexGrow: segment.minutes,
                     clipPath: `polygon(0 ${100 - Math.max(0, segment.startPercent - 50) * 2}%, 100% ${100 - Math.max(0, segment.endPercent - 50) * 2}%, 100% 100%, 0 100%)`,
                   }} />
                 ))}
+              </div>
+              <div className="template-zone-key" aria-hidden="true">
+                {zones.slice().reverse().map((zone) => <span key={zone.name} style={{ color: zone.color }}>{zone.name.replace("Zona ", "Z")}</span>)}
               </div>
               <small>60 minutos · {template.segments.length} tramos</small>
               <button type="button" aria-pressed={selectedTemplateName === template.name} onClick={() => loadTemplate(template)}>
