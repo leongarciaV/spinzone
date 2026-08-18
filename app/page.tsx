@@ -128,6 +128,7 @@ export default function Home() {
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [sensorName, setSensorName] = useState("HRM 200");
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [showProjectionHelp, setShowProjectionHelp] = useState(false);
   const characteristicRef = useRef<BluetoothCharacteristicLike | null>(null);
   const deviceRef = useRef<BluetoothDeviceLike | null>(null);
   const heartRateListenerRef = useRef<((event: Event) => void) | null>(null);
@@ -338,13 +339,37 @@ export default function Home() {
           <span className="eyebrow">SPINZONE</span>
           <h1>Entrena por pulso,<br />no por adivinanzas.</h1>
         </div>
-        <button className={`sensor-button ${connectionStatus}`} type="button"
-          onClick={connectionStatus === "connected" ? disconnectHeartRateMonitor : connectHeartRateMonitor}
-          disabled={connectionStatus === "connecting"}>
-          <span className="status-dot" />
-          {connectionStatus === "connected" ? `Desconectar ${sensorName}` : connectionStatus === "connecting" ? "Conectando…" : "Conectar HRM 200"}
-        </button>
+        <div className="topbar-actions">
+          <button className="cast-button" type="button" onClick={() => setShowProjectionHelp(true)}>
+            <span aria-hidden="true">▣</span> Proyectar al TV
+          </button>
+          <button className={`sensor-button ${connectionStatus}`} type="button"
+            onClick={connectionStatus === "connected" ? disconnectHeartRateMonitor : connectHeartRateMonitor}
+            disabled={connectionStatus === "connecting"}>
+            <span className="status-dot" />
+            {connectionStatus === "connected" ? `Desconectar ${sensorName}` : connectionStatus === "connecting" ? "Conectando…" : "Conectar HRM 200"}
+          </button>
+        </div>
       </header>
+
+      {showProjectionHelp && (
+        <div className="projection-backdrop" role="presentation" onMouseDown={() => setShowProjectionHelp(false)}>
+          <section className="projection-dialog" role="dialog" aria-modal="true" aria-labelledby="projection-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="projection-close" type="button" aria-label="Cerrar" onClick={() => setShowProjectionHelp(false)}>×</button>
+            <span className="eyebrow">MODO TV</span>
+            <h2 id="projection-title">Proyecta tu entrenamiento</h2>
+            <p>En iPhone, SpinZone se proyecta duplicando la pantalla con AirPlay.</p>
+            <ol>
+              <li>Conecta el iPhone y el TV a la misma red Wi‑Fi.</li>
+              <li>Abre el Centro de control del iPhone.</li>
+              <li>Pulsa <strong>Duplicar pantalla</strong> y elige tu Apple TV o televisor compatible con AirPlay.</li>
+              <li>Regresa a Bluefy y empieza el entrenamiento.</li>
+            </ol>
+            <p className="projection-note">Google Cast directo no está disponible desde navegadores de iPhone; requeriría una aplicación iOS nativa.</p>
+            <button className="projection-done" type="button" onClick={() => setShowProjectionHelp(false)}>Entendido</button>
+          </section>
+        </div>
+      )}
 
       {activeView === "Entrenar" && connectionMessage && <p className={`connection-message ${connectionStatus}`}>{connectionMessage}</p>}
 
@@ -468,13 +493,18 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
   setCircuitName: React.Dispatch<React.SetStateAction<string>>;
   onTrain: () => void;
 }) {
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(() =>
+    circuitTemplates.some((template) => template.name === circuitName) ? circuitName : null
+  );
   const totalMinutes = segments.reduce((total, segment) => total + segment.minutes, 0);
 
   function updateSegment(id: number, field: keyof CircuitSegment, value: string | number) {
+    setSelectedTemplateName(null);
     setSegments((current) => current.map((segment) => segment.id === id ? { ...segment, [field]: value } : segment));
   }
 
   function addSegment() {
+    setSelectedTemplateName(null);
     setSegments((current) => [...current, {
       id: Date.now(), name: "Nuevo tramo", minutes: 3, startPercent: 70, endPercent: 70,
     }]);
@@ -483,6 +513,13 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
   function loadTemplate(template: CircuitTemplate) {
     setSegments(template.segments.map((segment, index) => ({ ...segment, id: Date.now() + index })));
     setCircuitName(template.name);
+    setSelectedTemplateName(template.name);
+  }
+
+  function startCustomCircuit() {
+    setSegments([]);
+    setCircuitName("Mi circuito");
+    setSelectedTemplateName(null);
   }
 
   return (
@@ -492,14 +529,27 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
           <div><span className="label">PLANTILLAS DE 60 MIN</span><h2>Elige una sesión</h2></div>
           <p>Después puedes modificar cualquier tramo.</p>
         </div>
+        <div className={`template-selection ${selectedTemplateName ? "selected" : ""}`} role="status" aria-live="polite">
+          {selectedTemplateName ? <>✓ <strong>{selectedTemplateName}</strong> está seleccionada y lista para entrenar.</> : "Selecciona una plantilla para cargar su circuito."}
+        </div>
         <div className="template-grid">
           {circuitTemplates.map((template) => (
-            <article className="template-card" key={template.name}>
+            <article className={`template-card ${selectedTemplateName === template.name ? "selected" : ""}`} key={template.name}>
               <span className={`difficulty ${template.difficulty.toLowerCase()}`}>{template.difficulty}</span>
               <h3>{template.name}</h3>
               <p>{template.focus}</p>
+              <div className="template-profile" role="img" aria-label={`Perfil cardiaco de ${template.name}`}>
+                {template.segments.map((segment, index) => (
+                  <i key={`${segment.name}-${index}`} style={{
+                    flexGrow: segment.minutes,
+                    clipPath: `polygon(0 ${100 - Math.max(0, segment.startPercent - 50) * 2}%, 100% ${100 - Math.max(0, segment.endPercent - 50) * 2}%, 100% 100%, 0 100%)`,
+                  }} />
+                ))}
+              </div>
               <small>60 minutos · {template.segments.length} tramos</small>
-              <button type="button" onClick={() => loadTemplate(template)}>Usar plantilla</button>
+              <button type="button" aria-pressed={selectedTemplateName === template.name} onClick={() => loadTemplate(template)}>
+                {selectedTemplateName === template.name ? "✓ Plantilla seleccionada" : "Usar plantilla"}
+              </button>
             </article>
           ))}
           <article className="template-card new-template">
@@ -507,12 +557,12 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
             <h3>Diseñar desde cero</h3>
             <p>Crea tu propia sesión tramo por tramo.</p>
             <small>Duración libre</small>
-            <button type="button" onClick={() => setSegments([])}>Crear circuito</button>
+            <button type="button" onClick={startCustomCircuit}>Crear circuito</button>
           </article>
         </div>
       </div>
       <div className="editor-header">
-        <div className="circuit-name"><span className="label">DISEÑADOR</span><input value={circuitName} onChange={(event) => setCircuitName(event.target.value)} aria-label="Nombre del circuito" /></div>
+        <div className="circuit-name"><span className="label">DISEÑADOR</span><input value={circuitName} onChange={(event) => { setCircuitName(event.target.value); setSelectedTemplateName(null); }} aria-label="Nombre del circuito" /></div>
         <div className="editor-actions">
           <div className="duration"><small>DURACIÓN TOTAL</small><strong>{totalMinutes} min</strong></div>
           <button type="button" onClick={onTrain} disabled={!segments.length}>Usar para entrenar →</button>
@@ -539,7 +589,7 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
             <label><span>Minutos</span><input type="number" min="1" max="60" value={segment.minutes} onChange={(event) => updateSegment(segment.id, "minutes", Number(event.target.value))} /></label>
             <label><span>% inicial</span><input type="number" min="40" max="100" value={segment.startPercent} onChange={(event) => updateSegment(segment.id, "startPercent", Number(event.target.value))} /></label>
             <label><span>% final</span><input type="number" min="40" max="100" value={segment.endPercent} onChange={(event) => updateSegment(segment.id, "endPercent", Number(event.target.value))} /></label>
-            <button className="delete-button" type="button" aria-label={`Eliminar ${segment.name}`} onClick={() => setSegments((current) => current.filter((item) => item.id !== segment.id))}>×</button>
+            <button className="delete-button" type="button" aria-label={`Eliminar ${segment.name}`} onClick={() => { setSelectedTemplateName(null); setSegments((current) => current.filter((item) => item.id !== segment.id)); }}>×</button>
           </div>
         ))}
       </div>
