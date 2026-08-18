@@ -363,6 +363,9 @@ export default function Home() {
 
   function startWorkout() {
     if (!segments.length) return;
+    // Mobile browsers require wake-lock requests to happen directly inside
+    // the user's tap rather than later in an effect.
+    void keepScreenAwake();
     if (sessionState === "ready") {
       setElapsedSeconds(0);
       heartRateTotalRef.current = 0;
@@ -564,6 +567,7 @@ export default function Home() {
           <span><i className="target-swatch" />Frecuencia objetivo</span>
         </div>
 
+        <div className="chart-block">
         <div className="chart" aria-label="Perfil del circuito por zonas cardiacas">
           {zones.map((zone) => (
             <div className="zone-row" style={{ background: zone.color }} key={zone.name}>
@@ -579,6 +583,13 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <div className="segment-duration-strip" aria-label="Duración de cada tramo">
+            {segments.map((segment) => (
+              <span key={segment.id} style={{ flexGrow: segment.minutes }} title={`${segment.name}: ${segment.minutes} minutos`}>
+                <b>{segment.minutes}m</b><small>{segment.name}</small>
+              </span>
+            ))}
+          </div>
           <svg className="target-profile-line" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
             <polyline points={targetProfilePoints} />
           </svg>
@@ -587,11 +598,12 @@ export default function Home() {
             <div className="target-point" title={`Objetivo: ${workoutPosition.target}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (workoutPosition.target - 50) * 2))}%` }}><span>{workoutPosition.target}%</span></div>
             <div className="current-point" title={`Real: ${percentage}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (percentage - 50) * 2))}%` }}><span>{percentage}%</span></div>
           </div>
-          <div className="time-axis" aria-label="Tiempo del circuito">
-            {[0, .25, .5, .75, 1].map((position) => (
-              <span key={position} style={{ left: `${position * 100}%` }}>{formatTime(Math.round(totalSeconds * position))}</span>
-            ))}
-          </div>
+        </div>
+        <div className="time-axis" aria-label="Tiempo del circuito">
+          {[0, .25, .5, .75, 1].map((position) => (
+            <span key={position} style={{ left: `${position * 100}%` }}>{formatTime(Math.round(totalSeconds * position))}</span>
+          ))}
+        </div>
         </div>
 
         <div className="metrics">

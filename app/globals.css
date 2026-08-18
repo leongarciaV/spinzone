@@ -34,6 +34,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .segment-timer strong { margin: 0; color: #b7ff30; font-size: 20px; font-variant-numeric: tabular-nums; }
 .timer { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .timer small { color: var(--muted); font-size: 14px; }
+.chart-block { min-height: 0; }
 .chart { position: relative; height: 300px; overflow: hidden; }
 .chart-legend { display: flex; justify-content: flex-end; gap: 18px; padding: 8px 18px; border-top: 1px solid #282c28; color: var(--muted); font-size: 11px; }
 .chart-legend span { display: flex; align-items: center; gap: 7px; }
@@ -45,6 +46,10 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .planned-profile { position: absolute; inset: 0; display: flex; padding-left: 82px; }
 .planned-segment { position: relative; min-width: 3px; }
 .planned-segment i { position: absolute; inset: 0; display: block; background: linear-gradient(180deg, #ffffff80, #ffffff12); filter: drop-shadow(0 -3px 0 white); }
+.segment-duration-strip { position: absolute; z-index: 4; top: 5px; right: 8px; left: 82px; display: flex; height: 28px; pointer-events: none; }
+.segment-duration-strip span { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px; overflow: hidden; border-right: 1px solid #ffffff4d; color: #fff; text-shadow: 0 1px 3px #000; }
+.segment-duration-strip b { font-size: 10px; white-space: nowrap; }
+.segment-duration-strip small { overflow: hidden; max-width: 80px; font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .target-profile-line { position: absolute; z-index: 2; top: 0; right: 8px; bottom: 0; left: 82px; width: calc(100% - 90px); height: 100%; overflow: visible; pointer-events: none; }
 .target-profile-line polyline { fill: none; stroke: #b7ff30; stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 4px #b7ff30); }
 .tracking-layer { position: absolute; z-index: 3; inset: 0 8px 0 82px; pointer-events: none; }
@@ -55,8 +60,8 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .current-point span, .target-point span { position: absolute; left: 50%; transform: translateX(-50%); padding: 3px 5px; border-radius: 5px; background: #080a09dd; font-size: 9px; font-style: normal; font-weight: 900; white-space: nowrap; }
 .current-point span { bottom: 20px; color: white; }
 .target-point span { top: 22px; color: #b7ff30; }
-.time-axis { position: absolute; z-index: 5; left: 82px; right: 8px; bottom: 0; height: 24px; border-top: 1px solid #0a0d0a66; background: #070907b8; }
-.time-axis span { position: absolute; top: 6px; color: #d5d9d3; font-size: 9px; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
+.time-axis { position: relative; height: 19px; margin: 0 8px 0 82px; border-top: 1px solid #282c28; }
+.time-axis span { position: absolute; top: 3px; color: #aeb4ac; font-size: 8px; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
 .time-axis span:first-child { transform: none; }
 .time-axis span:last-child { transform: translateX(-100%); }
 .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #282c28; border-top: 1px solid #282c28; }
@@ -193,9 +198,10 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .history-list article { grid-template-columns: 1fr 1fr; }
   .history-list article > div { grid-column: span 2; }
   .planned-profile { padding-left: 68px; }
+  .segment-duration-strip { left: 68px; }
   .target-profile-line { left: 68px; width: calc(100% - 76px); }
   .tracking-layer { left: 68px; }
-  .time-axis { left: 68px; }
+  .time-axis { margin-left: 68px; }
   .segment-name { grid-column: span 2; }
   .delete-button { grid-column: 3; }
 }
@@ -208,7 +214,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .training-view .bottom-nav,
   .training-view .chart-legend,
   .training-view .simulator { display: none; }
-  .training-view .workout-card { width: 100%; height: 100%; display: grid; grid-template-rows: minmax(52px, auto) minmax(80px, 1fr) 72px 52px; border-radius: 12px; }
+  .training-view .workout-card { width: 100%; height: 100%; display: grid; grid-template-rows: minmax(48px, auto) minmax(100px, 1fr) 56px 44px; border-radius: 12px; }
   .training-view .session-head { min-width: 0; padding: 6px 12px; }
   .training-view .session-head > div:first-child { min-width: 0; }
   .training-view .session-head .label { display: block; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
@@ -217,19 +223,22 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .training-view .segment-timer small { font-size: 8px; }
   .training-view .segment-timer strong,
   .training-view .timer { font-size: 18px; }
-  .training-view .chart { height: auto; min-height: 0; }
+  .training-view .chart-block { min-height: 0; display: flex; flex-direction: column; }
+  .training-view .chart { height: auto; min-height: 0; flex: 1; }
   .training-view .zone-row { padding: 3px 12px; font-size: 11px; }
   .training-view .metrics { min-height: 0; grid-template-columns: repeat(3, 1fr); }
   .training-view .metrics > div { min-height: 0; }
   .training-view .pulse strong,
-  .training-view .percent strong { font-size: 34px; }
+  .training-view .percent strong { font-size: 26px; }
+  .training-view .heart { margin-right: 7px; font-size: 18px; }
+  .training-view .pulse small { margin-top: 15px; }
   .training-view .percent { grid-column: auto; }
   .training-view .percent span { margin-top: 2px; font-size: 12px; }
   .training-view .target { grid-column: auto; }
-  .training-view .target strong { margin-top: 3px; font-size: 22px; }
+  .training-view .target strong { margin-top: 1px; font-size: 18px; }
   .training-view .target em { margin-top: 1px; font-size: 9px; }
   .training-view .workout-controls { min-height: 0; padding: 5px 12px; flex-wrap: nowrap; }
-  .training-view .workout-controls button { min-width: 120px; padding: 6px 16px; }
+  .training-view .workout-controls button { min-width: 110px; padding: 5px 14px; }
   .training-view .screen-awake { width: auto; padding: 5px 8px; }
 }
 
@@ -241,5 +250,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .session-active .chart-legend,
   .session-active .simulator { display: none; }
   .session-active .workout-card { height: calc(100svh - 12px); display: grid; grid-template-rows: auto minmax(180px, 1fr) auto auto; }
-  .session-active .chart { height: auto; min-height: 0; }
+  .session-active .chart-block { min-height: 0; display: flex; flex-direction: column; }
+  .session-active .chart { height: auto; min-height: 0; flex: 1; }
 }
