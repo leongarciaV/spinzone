@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import NoSleep from "nosleep.js";
 
 interface BluetoothCharacteristicLike {
   startNotifications(): Promise<BluetoothCharacteristicLike>;
@@ -69,7 +70,17 @@ interface WorkoutHistory {
   completed: boolean;
 }
 
-const circuitTemplates: CircuitTemplate[] = [
+function makeMtbProfileProgressive(template: CircuitTemplate): CircuitTemplate {
+  return {
+    ...template,
+    segments: template.segments.map((segment, index, allSegments) => ({
+      ...segment,
+      startPercent: index === 0 ? segment.startPercent : allSegments[index - 1].endPercent,
+    })),
+  };
+}
+
+const circuitTemplates: CircuitTemplate[] = ([
   { name: "Fondo progresivo", difficulty: "Media", focus: "Base aeróbica y resistencia", segments: [
     { name: "Calentamiento", minutes: 10, startPercent: 50, endPercent: 65 },
     { name: "Ritmo aeróbico", minutes: 10, startPercent: 66, endPercent: 74 },
@@ -126,7 +137,7 @@ const circuitTemplates: CircuitTemplate[] = [
     { name: "Umbral final", minutes: 5, startPercent: 80, endPercent: 88 },
     { name: "Enfriamiento", minutes: 5, startPercent: 64, endPercent: 50 },
   ]},
-];
+] satisfies CircuitTemplate[]).map(makeMtbProfileProgressive);
 
 const zones = [
   { name: "Zona 5", range: "90–100%", color: "#ef4444" },
@@ -151,6 +162,7 @@ export default function Home() {
   const reconnectAttemptRef = useRef(0);
   const shouldReconnectRef = useRef(false);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
+  const noSleepRef = useRef<NoSleep | null>(null);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const sessionStateRef = useRef<"ready" | "running" | "paused">("ready");
   const latestHeartRateRef = useRef(145);
@@ -368,7 +380,9 @@ export default function Home() {
         // Bluefy can still keep the display awake with its native extension.
       }
     }
-    setWakeLockActive(activated || Boolean(wakeLockRef.current && !wakeLockRef.current.released));
+    setWakeLockActive(activated || Boolean(
+      (wakeLockRef.current && !wakeLockRef.current.released) || noSleepRef.current?.isEnabled
+    ));
   }
 
   async function releaseScreenWakeLock() {
@@ -381,7 +395,13 @@ export default function Home() {
     const wakeLock = wakeLockRef.current;
     wakeLockRef.current = null;
     if (wakeLock && !wakeLock.released) await wakeLock.release().catch(() => undefined);
+    noSleepRef.current?.disable();
     setWakeLockActive(false);
+  }
+
+  async function enableMobileNoSleep() {
+    if (!noSleepRef.current) noSleepRef.current = new NoSleep();
+    if (!noSleepRef.current.isEnabled) await noSleepRef.current.enable();
   }
 
   async function enterTrainingFullscreen() {
@@ -397,7 +417,15 @@ export default function Home() {
   }
 
   async function activateTrainingDisplay() {
-    await Promise.all([keepScreenAwake(), enterTrainingFullscreen()]);
+    await Promise.all([
+      keepScreenAwake(),
+      enterTrainingFullscreen(),
+      enableMobileNoSleep().catch(() => undefined),
+    ]);
+    setWakeLockActive(Boolean(
+      noSleepRef.current?.isEnabled ||
+      (wakeLockRef.current && !wakeLockRef.current.released)
+    ));
   }
 
   function startWorkout() {
