@@ -179,12 +179,37 @@ export default function Home() {
       if (elapsedSeconds < passed + duration || index === segments.length - 1) {
         const ratio = Math.min(1, Math.max(0, (elapsedSeconds - passed) / Math.max(duration, 1)));
         const target = Math.round(segments[index].startPercent + (segments[index].endPercent - segments[index].startPercent) * ratio);
-        return { segment: segments[index], index, target };
+        return {
+          segment: segments[index],
+          index,
+          target,
+          elapsedInSegment: Math.max(0, elapsedSeconds - passed),
+          remainingInSegment: Math.max(0, duration - (elapsedSeconds - passed)),
+        };
       }
       passed += duration;
     }
-    return { segment: undefined, index: 0, target: 0 };
+    return { segment: undefined, index: 0, target: 0, elapsedInSegment: 0, remainingInSegment: 0 };
   }, [elapsedSeconds, segments]);
+
+  const targetProfilePoints = useMemo(() => {
+    if (!totalSeconds) return "";
+    let passedSeconds = 0;
+    const points: string[] = [];
+    segments.forEach((segment) => {
+      const startX = passedSeconds / totalSeconds * 1000;
+      const endX = (passedSeconds + segment.minutes * 60) / totalSeconds * 1000;
+      const startY = 100 - Math.min(100, Math.max(0, (segment.startPercent - 50) * 2));
+      const endY = 100 - Math.min(100, Math.max(0, (segment.endPercent - 50) * 2));
+      // Include every segment start. When two consecutive segments have
+      // different targets this creates the same vertical change followed by
+      // the live target pointer at that exact instant.
+      points.push(`${startX},${startY}`);
+      points.push(`${endX},${endY}`);
+      passedSeconds += segment.minutes * 60;
+    });
+    return points.join(" ");
+  }, [segments, totalSeconds]);
 
   useEffect(() => {
     const savedAge = localStorage.getItem("spinzone-age");
@@ -501,7 +526,7 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${activeView === "Entrenar" ? "training-view" : ""} ${sessionState !== "ready" ? "session-active" : ""}`}>
       <header className="topbar">
         <div>
           <span className="eyebrow">SPINZONE</span>
@@ -525,10 +550,13 @@ export default function Home() {
       {activeView === "Entrenar" && <section className="workout-card">
         <div className="session-head">
           <div>
-            <span className="label">{workoutPosition.segment ? `TRAMO ${workoutPosition.index + 1} DE ${segments.length}` : "SIN CIRCUITO"}</span>
+            <span className="label">{workoutPosition.segment ? `${circuitName} · TRAMO ${workoutPosition.index + 1} DE ${segments.length}` : "SIN CIRCUITO"}</span>
             <strong>{workoutPosition.segment?.name || "Selecciona o diseña un circuito"}</strong>
           </div>
-          <div className="timer">{formatTime(elapsedSeconds)} <small>/ {formatTime(totalSeconds)}</small></div>
+          <div className="time-readouts">
+            <div className="segment-timer"><small>RESTANTE DEL TRAMO</small><strong>{formatTime(workoutPosition.remainingInSegment)}</strong></div>
+            <div className="timer">{formatTime(elapsedSeconds)} <small>/ {formatTime(totalSeconds)}</small></div>
+          </div>
         </div>
 
         <div className="chart-legend">
@@ -551,9 +579,14 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div className="progress-marker" style={{ left: `max(82px, calc(${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}% - 8px))` }} />
-          <div className="target-point" title={`Objetivo: ${workoutPosition.target}%`} style={{ left: `max(82px, calc(${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}% - 10px))`, bottom: `${Math.min(98, Math.max(2, (workoutPosition.target - 50) * 2))}%` }}><span>{workoutPosition.target}%</span></div>
-          <div className="current-point" title={`Real: ${percentage}%`} style={{ left: `max(82px, calc(${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}% - 10px))`, bottom: `${Math.min(98, Math.max(2, (percentage - 50) * 2))}%` }}><span>{percentage}%</span></div>
+          <svg className="target-profile-line" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points={targetProfilePoints} />
+          </svg>
+          <div className="tracking-layer" aria-hidden="true">
+            <div className="progress-marker" style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%` }} />
+            <div className="target-point" title={`Objetivo: ${workoutPosition.target}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (workoutPosition.target - 50) * 2))}%` }}><span>{workoutPosition.target}%</span></div>
+            <div className="current-point" title={`Real: ${percentage}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (percentage - 50) * 2))}%` }}><span>{percentage}%</span></div>
+          </div>
           <div className="time-axis" aria-label="Tiempo del circuito">
             {[0, .25, .5, .75, 1].map((position) => (
               <span key={position} style={{ left: `${position * 100}%` }}>{formatTime(Math.round(totalSeconds * position))}</span>
@@ -574,6 +607,9 @@ export default function Home() {
           <div className="target">
             <span>OBJETIVO ACTUAL</span>
             <strong>{workoutPosition.target}%</strong>
+            {workoutPosition.segment && (
+              <em>{workoutPosition.segment.startPercent}–{workoutPosition.segment.endPercent}% · {workoutPosition.segment.minutes} min</em>
+            )}
           </div>
         </div>
 

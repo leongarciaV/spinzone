@@ -28,6 +28,10 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .workout-card { overflow: hidden; border: 1px solid #282c28; border-radius: 24px; background: #111411; box-shadow: 0 24px 80px #0008; }
 .session-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; }
 .session-head strong { display: block; margin-top: 5px; font-size: 20px; }
+.time-readouts { display: flex; align-items: center; gap: 24px; text-align: right; }
+.segment-timer { display: flex; flex-direction: column; gap: 3px; }
+.segment-timer small { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.segment-timer strong { margin: 0; color: #b7ff30; font-size: 20px; font-variant-numeric: tabular-nums; }
 .timer { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .timer small { color: var(--muted); font-size: 14px; }
 .chart { position: relative; height: 300px; overflow: hidden; }
@@ -41,6 +45,9 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .planned-profile { position: absolute; inset: 0; display: flex; padding-left: 82px; }
 .planned-segment { position: relative; min-width: 3px; }
 .planned-segment i { position: absolute; inset: 0; display: block; background: linear-gradient(180deg, #ffffff80, #ffffff12); filter: drop-shadow(0 -3px 0 white); }
+.target-profile-line { position: absolute; z-index: 2; top: 0; right: 8px; bottom: 0; left: 82px; width: calc(100% - 90px); height: 100%; overflow: visible; pointer-events: none; }
+.target-profile-line polyline { fill: none; stroke: #b7ff30; stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 4px #b7ff30); }
+.tracking-layer { position: absolute; z-index: 3; inset: 0 8px 0 82px; pointer-events: none; }
 .progress-marker { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; background: #fff9; transition: left .25s linear; }
 .current-point, .target-point { position: absolute; z-index: 4; width: 19px; height: 19px; margin-bottom: -9px; border-radius: 50%; transition: bottom .2s ease, left .25s linear; }
 .current-point { border: 4px solid white; background: #080a09; box-shadow: 0 0 0 4px #0004; }
@@ -62,6 +69,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .target { flex-direction: column; }
 .target span { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
 .target strong { margin-top: 8px; font-size: 26px; }
+.target em { margin-top: 4px; color: #c6cbc3; font-size: 11px; font-style: normal; font-weight: 800; }
 .workout-controls { display: flex; justify-content: center; gap: 12px; padding: 18px 24px; border-top: 1px solid #282c28; }
 .workout-controls button { min-width: 150px; padding: 13px 22px; border-radius: 12px; font-weight: 900; }
 .screen-awake { align-self: center; padding: 7px 10px; border: 1px solid #3c5130; border-radius: 99px; background: #182016; color: #caff77; font-size: 11px; font-weight: 800; white-space: nowrap; }
@@ -152,12 +160,20 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .history-list .completed { color: #a9f78c; background: #1d3817; }
 .history-list .stopped { color: #ffc079; background: #3b2610; }
 @media (max-width: 680px) {
-  .app-shell { padding: 22px 14px 100px; }
-  .topbar { flex-direction: column; }
+  .app-shell { padding: 12px 10px 76px; }
+  .topbar { align-items: center; margin-bottom: 10px; }
+  .topbar h1 { display: none; }
   .topbar-actions { width: 100%; flex-direction: column; align-items: stretch; }
-  .music-button { width: 100%; text-align: center; }
-  .sensor-button { width: 100%; }
-  .chart { height: 260px; }
+  .music-button { display: none; }
+  .sensor-button { width: 100%; padding: 9px 14px; }
+  .session-head { padding: 12px 14px; gap: 12px; }
+  .session-head .label { font-size: 9px; letter-spacing: .1em; }
+  .session-head strong { font-size: 16px; }
+  .time-readouts { gap: 12px; }
+  .segment-timer small { max-width: 70px; }
+  .timer { font-size: 20px; }
+  .timer small { display: block; font-size: 10px; }
+  .chart { height: 220px; }
   .metrics { grid-template-columns: 1fr 1fr; }
   .target { grid-column: span 2; min-height: 72px !important; }
   .pulse strong, .percent strong { font-size: 40px; }
@@ -177,7 +193,53 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .history-list article { grid-template-columns: 1fr 1fr; }
   .history-list article > div { grid-column: span 2; }
   .planned-profile { padding-left: 68px; }
+  .target-profile-line { left: 68px; width: calc(100% - 76px); }
+  .tracking-layer { left: 68px; }
   .time-axis { left: 68px; }
   .segment-name { grid-column: span 2; }
   .delete-button { grid-column: 3; }
+}
+
+@media (orientation: landscape) and (max-width: 1000px) {
+  body:has(.training-view) { overflow: hidden; }
+  .training-view { position: fixed; z-index: 10; inset: 0; width: 100%; height: 100dvh; max-width: none; padding: 4px; overflow: hidden; background: #080a09; }
+  .training-view .topbar,
+  .training-view .connection-message,
+  .training-view .bottom-nav,
+  .training-view .chart-legend,
+  .training-view .simulator { display: none; }
+  .training-view .workout-card { width: 100%; height: 100%; display: grid; grid-template-rows: minmax(52px, auto) minmax(80px, 1fr) 72px 52px; border-radius: 12px; }
+  .training-view .session-head { min-width: 0; padding: 6px 12px; }
+  .training-view .session-head > div:first-child { min-width: 0; }
+  .training-view .session-head .label { display: block; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .training-view .session-head strong { margin-top: 2px; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+  .training-view .time-readouts { flex: 0 0 auto; gap: 12px; }
+  .training-view .segment-timer small { font-size: 8px; }
+  .training-view .segment-timer strong,
+  .training-view .timer { font-size: 18px; }
+  .training-view .chart { height: auto; min-height: 0; }
+  .training-view .zone-row { padding: 3px 12px; font-size: 11px; }
+  .training-view .metrics { min-height: 0; grid-template-columns: repeat(3, 1fr); }
+  .training-view .metrics > div { min-height: 0; }
+  .training-view .pulse strong,
+  .training-view .percent strong { font-size: 34px; }
+  .training-view .percent { grid-column: auto; }
+  .training-view .percent span { margin-top: 2px; font-size: 12px; }
+  .training-view .target { grid-column: auto; }
+  .training-view .target strong { margin-top: 3px; font-size: 22px; }
+  .training-view .target em { margin-top: 1px; font-size: 9px; }
+  .training-view .workout-controls { min-height: 0; padding: 5px 12px; flex-wrap: nowrap; }
+  .training-view .workout-controls button { min-width: 120px; padding: 6px 16px; }
+  .training-view .screen-awake { width: auto; padding: 5px 8px; }
+}
+
+@media (max-width: 680px) and (orientation: portrait) {
+  .session-active { height: 100svh; padding-top: 6px; }
+  .session-active .topbar,
+  .session-active .connection-message,
+  .session-active .bottom-nav,
+  .session-active .chart-legend,
+  .session-active .simulator { display: none; }
+  .session-active .workout-card { height: calc(100svh - 12px); display: grid; grid-template-rows: auto minmax(180px, 1fr) auto auto; }
+  .session-active .chart { height: auto; min-height: 0; }
 }
