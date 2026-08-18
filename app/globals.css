@@ -64,6 +64,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .target strong { margin-top: 8px; font-size: 26px; }
 .workout-controls { display: flex; justify-content: center; gap: 12px; padding: 18px 24px; border-top: 1px solid #282c28; }
 .workout-controls button { min-width: 150px; padding: 13px 22px; border-radius: 12px; font-weight: 900; }
+.screen-awake { align-self: center; padding: 7px 10px; border: 1px solid #3c5130; border-radius: 99px; background: #182016; color: #caff77; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .start-button { border: 1px solid #7ead37; background: #b7ff30; color: #0b1008; }
 .pause-button { border: 1px solid #d19b32; background: #3b2b0c; color: #ffd36d; }
 .stop-button { border: 1px solid #7b3737; background: #321515; color: #ff8c8c; }
@@ -151,6 +152,8 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .metrics { grid-template-columns: 1fr 1fr; }
   .target { grid-column: span 2; min-height: 72px !important; }
   .pulse strong, .percent strong { font-size: 40px; }
+  .workout-controls { flex-wrap: wrap; }
+  .screen-awake { width: 100%; text-align: center; }
   .simulator { flex-direction: column; align-items: stretch; }
   .profile-settings { grid-template-columns: 1fr 1fr; }
   .profile-settings p { grid-column: span 2; text-align: left; }

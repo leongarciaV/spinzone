@@ -27,6 +27,12 @@ interface BluetoothDeviceLike {
 
 interface WebBluetoothLike {
   requestDevice(options: { filters: { services: string[] }[] }): Promise<BluetoothDeviceLike>;
+  setScreenDimEnabled?(enabled: boolean): void | Promise<void>;
+}
+
+interface WakeLockSentinelLike {
+  released: boolean;
+  release(): Promise<void>;
 }
 
 interface CircuitSegment {
@@ -135,6 +141,8 @@ export default function Home() {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const shouldReconnectRef = useRef(false);
+  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
+  const sessionStateRef = useRef<"ready" | "running" | "paused">("ready");
   const latestHeartRateRef = useRef(145);
   const [circuitName, setCircuitName] = useState("Mi circuito");
   const [sessionState, setSessionState] = useState<"ready" | "running" | "paused">("ready");
@@ -192,6 +200,20 @@ export default function Home() {
   useEffect(() => { localStorage.setItem("spinzone-circuit-name", circuitName); }, [circuitName]);
   useEffect(() => { localStorage.setItem("spinzone-history", JSON.stringify(history)); }, [history]);
 
+  useEffect(() => {
+    sessionStateRef.current = sessionState;
+    if (sessionState === "ready") void releaseScreenWakeLock();
+    else void keepScreenAwake();
+  }, [sessionState]);
+
+  useEffect(() => {
+    function restoreWakeLock() {
+      if (document.visibilityState === "visible" && sessionStateRef.current !== "ready") void keepScreenAwake();
+    }
+    document.addEventListener("visibilitychange", restoreWakeLock);
+    return () => document.removeEventListener("visibilitychange", restoreWakeLock);
+  }, []);
+
   useEffect(() => () => {
     shouldReconnectRef.current = false;
     if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
@@ -205,6 +227,7 @@ export default function Home() {
     }
     if (device && disconnectListener) device.removeEventListener("gattserverdisconnected", disconnectListener);
     device?.gatt?.disconnect();
+    void releaseScreenWakeLock();
   }, []);
 
   useEffect(() => {
@@ -225,6 +248,38 @@ export default function Home() {
   function formatTime(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  async function keepScreenAwake() {
+    const bluetooth = (navigator as Navigator & { bluetooth?: WebBluetoothLike }).bluetooth;
+    try {
+      await bluetooth?.setScreenDimEnabled?.(false);
+    } catch {
+      // Continue with the standard Screen Wake Lock API when available.
+    }
+
+    const wakeLockNavigator = navigator as Navigator & {
+      wakeLock?: { request(type: "screen"): Promise<WakeLockSentinelLike> };
+    };
+    if (!wakeLockRef.current || wakeLockRef.current.released) {
+      try {
+        wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen") || null;
+      } catch {
+        // Bluefy can still keep the display awake with its native extension.
+      }
+    }
+  }
+
+  async function releaseScreenWakeLock() {
+    const bluetooth = (navigator as Navigator & { bluetooth?: WebBluetoothLike }).bluetooth;
+    try {
+      await bluetooth?.setScreenDimEnabled?.(true);
+    } catch {
+      // The native Bluefy extension is optional.
+    }
+    const wakeLock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (wakeLock && !wakeLock.released) await wakeLock.release().catch(() => undefined);
   }
 
   function startWorkout() {
@@ -462,6 +517,7 @@ export default function Home() {
           {sessionState === "running" && <button className="pause-button" type="button" onClick={() => setSessionState("paused")}>Ⅱ Pausar</button>}
           {sessionState === "paused" && <button className="start-button" type="button" onClick={startWorkout}>▶ Reanudar</button>}
           {sessionState !== "ready" && <button className="stop-button" type="button" onClick={() => finishWorkout(false)}>■ Stop</button>}
+          {sessionState !== "ready" && <span className="screen-awake" role="status">☀ Pantalla activa</span>}
         </div>
 
         <div className="profile-settings">
