@@ -16,11 +16,15 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .sensor-button:disabled { cursor: default; }
 .sensor-button.connected { border-color: #65d83f; }
 .sensor-button.connected .status-dot { background: #65d83f; box-shadow: 0 0 12px #65d83f; }
+.sensor-button.reconnecting { border-color: #f59e0b; color: #ffd36d; }
+.sensor-button.reconnecting .status-dot { animation: reconnect-pulse 1s ease-in-out infinite; }
 .sensor-button.error .status-dot { background: #ef4444; box-shadow: 0 0 12px #ef4444; }
 .status-dot { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 12px #f59e0b; }
 .connection-message { margin: -18px 0 18px; padding: 11px 15px; border: 1px solid #303530; border-radius: 12px; color: var(--muted); font-size: 13px; }
 .connection-message.connected { color: #9cef7d; border-color: #315b28; background: #162016; }
+.connection-message.reconnecting { color: #ffd36d; border-color: #684d19; background: #261d0d; }
 .connection-message.error { color: #fda4a4; border-color: #713535; background: #261313; }
+@keyframes reconnect-pulse { 50% { opacity: .3; transform: scale(.75); } }
 .workout-card { overflow: hidden; border: 1px solid #282c28; border-radius: 24px; background: #111411; box-shadow: 0 24px 80px #0008; }
 .session-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; }
 .session-head strong { display: block; margin-top: 5px; font-size: 20px; }

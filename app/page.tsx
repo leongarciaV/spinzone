@@ -125,13 +125,16 @@ export default function Home() {
   const [activeView, setActiveView] = useState("Entrenar");
   const [heartRate, setHeartRate] = useState(145);
   const [ageInput, setAgeInput] = useState("47");
-  const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "reconnecting" | "connected" | "error">("idle");
   const [sensorName, setSensorName] = useState("HRM 200");
   const [connectionMessage, setConnectionMessage] = useState("");
   const characteristicRef = useRef<BluetoothCharacteristicLike | null>(null);
   const deviceRef = useRef<BluetoothDeviceLike | null>(null);
   const heartRateListenerRef = useRef<((event: Event) => void) | null>(null);
   const disconnectListenerRef = useRef<(() => void) | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const shouldReconnectRef = useRef(false);
   const latestHeartRateRef = useRef(145);
   const [circuitName, setCircuitName] = useState("Mi circuito");
   const [sessionState, setSessionState] = useState<"ready" | "running" | "paused">("ready");
@@ -190,6 +193,8 @@ export default function Home() {
   useEffect(() => { localStorage.setItem("spinzone-history", JSON.stringify(history)); }, [history]);
 
   useEffect(() => () => {
+    shouldReconnectRef.current = false;
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
     const characteristic = characteristicRef.current;
     const heartRateListener = heartRateListenerRef.current;
     const device = deviceRef.current;
@@ -256,7 +261,57 @@ export default function Home() {
     setHeartRate(bpm);
   }
 
+  async function subscribeToHeartRate(device: BluetoothDeviceLike) {
+    const server = await device.gatt?.connect();
+    if (!server) throw new Error("No se pudo abrir la conexión Bluetooth.");
+    const service = await server.getPrimaryService("heart_rate");
+    const characteristic = await service.getCharacteristic("heart_rate_measurement");
+    const heartRateListener = readHeartRate;
+    characteristicRef.current = characteristic;
+    heartRateListenerRef.current = heartRateListener;
+    characteristic.addEventListener("characteristicvaluechanged", heartRateListener);
+    await characteristic.startNotifications();
+  }
+
+  function scheduleReconnect() {
+    const device = deviceRef.current;
+    if (!shouldReconnectRef.current || !device) return;
+
+    const characteristic = characteristicRef.current;
+    const heartRateListener = heartRateListenerRef.current;
+    if (characteristic && heartRateListener) {
+      characteristic.removeEventListener("characteristicvaluechanged", heartRateListener);
+    }
+    characteristicRef.current = null;
+    heartRateListenerRef.current = null;
+    reconnectAttemptRef.current += 1;
+    const attempt = reconnectAttemptRef.current;
+    const delay = Math.min(10000, 1000 * 2 ** Math.min(attempt - 1, 3));
+    setConnectionStatus("reconnecting");
+    setConnectionMessage(`Conexión interrumpida. Reconectando automáticamente… intento ${attempt}.`);
+
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = window.setTimeout(async () => {
+      reconnectTimerRef.current = null;
+      if (!shouldReconnectRef.current || deviceRef.current !== device) return;
+      try {
+        await subscribeToHeartRate(device);
+        reconnectAttemptRef.current = 0;
+        setConnectionStatus("connected");
+        setConnectionMessage("HRM reconectado. Recibiendo tu frecuencia cardiaca en tiempo real.");
+      } catch {
+        scheduleReconnect();
+      }
+    }, delay);
+  }
+
   async function disconnectHeartRateMonitor() {
+    shouldReconnectRef.current = false;
+    reconnectAttemptRef.current = 0;
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     const characteristic = characteristicRef.current;
     const heartRateListener = heartRateListenerRef.current;
     const device = deviceRef.current;
@@ -293,23 +348,11 @@ export default function Home() {
       setConnectionMessage("Selecciona tu HRM 200 en la ventana del navegador.");
       const device = await bluetooth.requestDevice({ filters: [{ services: ["heart_rate"] }] });
       deviceRef.current = device;
-      const server = await device.gatt?.connect();
-      if (!server) throw new Error("No se pudo abrir la conexión Bluetooth.");
-      const service = await server.getPrimaryService("heart_rate");
-      const characteristic = await service.getCharacteristic("heart_rate_measurement");
-      characteristicRef.current = characteristic;
-      heartRateListenerRef.current = readHeartRate;
-      characteristic.addEventListener("characteristicvaluechanged", heartRateListenerRef.current);
-      await characteristic.startNotifications();
-      disconnectListenerRef.current = () => {
-        characteristicRef.current = null;
-        heartRateListenerRef.current = null;
-        disconnectListenerRef.current = null;
-        deviceRef.current = null;
-        setConnectionStatus("idle");
-        setConnectionMessage("HRM desconectado. Pulsa conectar para intentarlo otra vez.");
-      };
+      shouldReconnectRef.current = true;
+      reconnectAttemptRef.current = 0;
+      disconnectListenerRef.current = scheduleReconnect;
       device.addEventListener("gattserverdisconnected", disconnectListenerRef.current);
+      await subscribeToHeartRate(device);
       setSensorName(device.name || "HRM 200");
       setConnectionStatus("connected");
       setConnectionMessage("Recibiendo tu frecuencia cardiaca en tiempo real.");
@@ -317,10 +360,16 @@ export default function Home() {
       const characteristic = characteristicRef.current;
       const heartRateListener = heartRateListenerRef.current;
       const device = deviceRef.current;
+      shouldReconnectRef.current = false;
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (characteristic && heartRateListener) {
         characteristic.removeEventListener("characteristicvaluechanged", heartRateListener);
         void characteristic.stopNotifications().catch(() => undefined);
       }
+      if (device && disconnectListenerRef.current) device.removeEventListener("gattserverdisconnected", disconnectListenerRef.current);
       device?.gatt?.disconnect();
       characteristicRef.current = null;
       heartRateListenerRef.current = null;
@@ -343,10 +392,10 @@ export default function Home() {
             <span aria-hidden="true">♫</span> YouTube Music
           </a>
           <button className={`sensor-button ${connectionStatus}`} type="button"
-            onClick={connectionStatus === "connected" ? disconnectHeartRateMonitor : connectHeartRateMonitor}
+            onClick={connectionStatus === "connected" || connectionStatus === "reconnecting" ? disconnectHeartRateMonitor : connectHeartRateMonitor}
             disabled={connectionStatus === "connecting"}>
             <span className="status-dot" />
-            {connectionStatus === "connected" ? `Desconectar ${sensorName}` : connectionStatus === "connecting" ? "Conectando…" : "Conectar HRM 200"}
+            {connectionStatus === "connected" ? `Desconectar ${sensorName}` : connectionStatus === "reconnecting" ? "Cancelar reconexión" : connectionStatus === "connecting" ? "Conectando…" : "Conectar HRM 200"}
           </button>
         </div>
       </header>
