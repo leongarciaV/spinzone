@@ -13,8 +13,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .sensor-button { border: 1px solid #303530; background: #151815; border-radius: 99px; padding: 13px 18px; white-space: nowrap; }
 .music-button { border: 1px solid #5b3035; background: #251417; border-radius: 99px; padding: 13px 18px; color: #ff9ca8; text-decoration: none; white-space: nowrap; }
 .music-button span { margin-right: 5px; font-size: 16px; }
-.cast-button { border: 1px solid #3c5130; background: #182016; border-radius: 99px; padding: 13px 18px; color: #caff77; white-space: nowrap; }
-.cast-button span { display: inline-block; margin-right: 6px; transform: rotate(180deg); }
 .sensor-button:disabled { cursor: default; }
 .sensor-button.connected { border-color: #65d83f; }
 .sensor-button.connected .status-dot { background: #65d83f; box-shadow: 0 0 12px #65d83f; }
@@ -23,16 +21,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .connection-message { margin: -18px 0 18px; padding: 11px 15px; border: 1px solid #303530; border-radius: 12px; color: var(--muted); font-size: 13px; }
 .connection-message.connected { color: #9cef7d; border-color: #315b28; background: #162016; }
 .connection-message.error { color: #fda4a4; border-color: #713535; background: #261313; }
-.projection-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: #020402d9; backdrop-filter: blur(10px); }
-.projection-dialog { position: relative; width: min(520px, 100%); padding: 28px; border: 1px solid #3c4439; border-radius: 22px; background: #111511; box-shadow: 0 24px 90px #000c; }
-.projection-dialog h2 { margin: 7px 36px 8px 0; font-size: 30px; }
-.projection-dialog > p { color: #b3bab0; line-height: 1.5; }
-.projection-dialog ol { margin: 22px 0; padding-left: 24px; }
-.projection-dialog li { margin: 12px 0; padding-left: 5px; line-height: 1.45; }
-.projection-dialog li::marker { color: #b7ff30; font-weight: 900; }
-.projection-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border: 1px solid #384038; border-radius: 50%; background: #1b201b; font-size: 23px; }
-.projection-dialog .projection-note { padding: 12px 14px; border-radius: 10px; background: #1a2117; color: #9ea99a; font-size: 12px; }
-.projection-done { width: 100%; margin-top: 8px; padding: 12px; border: 1px solid #7ead37; border-radius: 10px; background: #b7ff30; color: #0b1008; font-weight: 900; }
 .workout-card { overflow: hidden; border: 1px solid #282c28; border-radius: 24px; background: #111411; box-shadow: 0 24px 80px #0008; }
 .session-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; }
 .session-head strong { display: block; margin-top: 5px; font-size: 20px; }
@@ -154,7 +142,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .topbar { flex-direction: column; }
   .topbar-actions { width: 100%; flex-direction: column; align-items: stretch; }
   .music-button { width: 100%; text-align: center; }
-  .cast-button { width: 100%; }
   .sensor-button { width: 100%; }
   .chart { height: 260px; }
   .metrics { grid-template-columns: 1fr 1fr; }

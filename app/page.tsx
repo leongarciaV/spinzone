@@ -128,7 +128,6 @@ export default function Home() {
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
   const [sensorName, setSensorName] = useState("HRM 200");
   const [connectionMessage, setConnectionMessage] = useState("");
-  const [showProjectionHelp, setShowProjectionHelp] = useState(false);
   const characteristicRef = useRef<BluetoothCharacteristicLike | null>(null);
   const deviceRef = useRef<BluetoothDeviceLike | null>(null);
   const heartRateListenerRef = useRef<((event: Event) => void) | null>(null);
@@ -343,9 +342,6 @@ export default function Home() {
           <a className="music-button" href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="Abrir YouTube Music en una pestaña nueva">
             <span aria-hidden="true">♫</span> YouTube Music
           </a>
-          <button className="cast-button" type="button" onClick={() => setShowProjectionHelp(true)}>
-            <span aria-hidden="true">▣</span> Proyectar al TV
-          </button>
           <button className={`sensor-button ${connectionStatus}`} type="button"
             onClick={connectionStatus === "connected" ? disconnectHeartRateMonitor : connectHeartRateMonitor}
             disabled={connectionStatus === "connecting"}>
@@ -354,25 +350,6 @@ export default function Home() {
           </button>
         </div>
       </header>
-
-      {showProjectionHelp && (
-        <div className="projection-backdrop" role="presentation" onMouseDown={() => setShowProjectionHelp(false)}>
-          <section className="projection-dialog" role="dialog" aria-modal="true" aria-labelledby="projection-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="projection-close" type="button" aria-label="Cerrar" onClick={() => setShowProjectionHelp(false)}>×</button>
-            <span className="eyebrow">MODO TV</span>
-            <h2 id="projection-title">Proyecta tu entrenamiento</h2>
-            <p>En iPhone, SpinZone se proyecta duplicando la pantalla con AirPlay.</p>
-            <ol>
-              <li>Conecta el iPhone y el TV a la misma red Wi‑Fi.</li>
-              <li>Abre el Centro de control del iPhone.</li>
-              <li>Pulsa <strong>Duplicar pantalla</strong> y elige tu Apple TV o televisor compatible con AirPlay.</li>
-              <li>Regresa a Bluefy y empieza el entrenamiento.</li>
-            </ol>
-            <p className="projection-note">Google Cast directo no está disponible desde navegadores de iPhone; requeriría una aplicación iOS nativa.</p>
-            <button className="projection-done" type="button" onClick={() => setShowProjectionHelp(false)}>Entendido</button>
-          </section>
-        </div>
-      )}
 
       {activeView === "Entrenar" && connectionMessage && <p className={`connection-message ${connectionStatus}`}>{connectionMessage}</p>}
 

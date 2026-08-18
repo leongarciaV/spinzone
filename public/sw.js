@@ -1,4 +1,4 @@
-const CACHE_NAME = "spinzone-v3";
+const CACHE_NAME = "spinzone-v4";
 const OFFLINE_URLS = ["/", "/manifest.webmanifest", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {
