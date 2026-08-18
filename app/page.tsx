@@ -35,6 +35,15 @@ interface WakeLockSentinelLike {
   release(): Promise<void>;
 }
 
+interface FullscreenDocumentLike extends Document {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+
+interface FullscreenElementLike extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
 interface CircuitSegment {
   id: number;
   name: string;
@@ -142,6 +151,7 @@ export default function Home() {
   const reconnectAttemptRef = useRef(0);
   const shouldReconnectRef = useRef(false);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
   const sessionStateRef = useRef<"ready" | "running" | "paused">("ready");
   const latestHeartRateRef = useRef(145);
   const [circuitName, setCircuitName] = useState("Mi circuito");
@@ -238,6 +248,12 @@ export default function Home() {
   }, [sessionState]);
 
   useEffect(() => {
+    if (sessionState === "ready") return;
+    const wakeLockCheck = window.setInterval(() => void keepScreenAwake(), 10000);
+    return () => window.clearInterval(wakeLockCheck);
+  }, [sessionState]);
+
+  useEffect(() => {
     function restoreWakeLock() {
       if (document.visibilityState === "visible" && sessionStateRef.current !== "ready") void keepScreenAwake();
     }
@@ -331,8 +347,12 @@ export default function Home() {
 
   async function keepScreenAwake() {
     const bluetooth = (navigator as Navigator & { bluetooth?: WebBluetoothLike }).bluetooth;
+    let activated = false;
     try {
-      await bluetooth?.setScreenDimEnabled?.(false);
+      if (bluetooth?.setScreenDimEnabled) {
+        await bluetooth.setScreenDimEnabled(false);
+        activated = true;
+      }
     } catch {
       // Continue with the standard Screen Wake Lock API when available.
     }
@@ -343,10 +363,12 @@ export default function Home() {
     if (!wakeLockRef.current || wakeLockRef.current.released) {
       try {
         wakeLockRef.current = await wakeLockNavigator.wakeLock?.request("screen") || null;
+        activated = activated || Boolean(wakeLockRef.current && !wakeLockRef.current.released);
       } catch {
         // Bluefy can still keep the display awake with its native extension.
       }
     }
+    setWakeLockActive(activated || Boolean(wakeLockRef.current && !wakeLockRef.current.released));
   }
 
   async function releaseScreenWakeLock() {
@@ -359,13 +381,34 @@ export default function Home() {
     const wakeLock = wakeLockRef.current;
     wakeLockRef.current = null;
     if (wakeLock && !wakeLock.released) await wakeLock.release().catch(() => undefined);
+    setWakeLockActive(false);
+  }
+
+  async function enterTrainingFullscreen() {
+    const fullscreenDocument = document as FullscreenDocumentLike;
+    if (document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) return;
+    const root = document.documentElement as FullscreenElementLike;
+    try {
+      if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
+      else await root.webkitRequestFullscreen?.();
+    } catch {
+      // Some iPhone browsers only allow installed PWAs to hide browser chrome.
+    }
+  }
+
+  async function activateTrainingDisplay() {
+    await Promise.all([keepScreenAwake(), enterTrainingFullscreen()]);
   }
 
   function startWorkout() {
     if (!segments.length) return;
     // Mobile browsers require wake-lock requests to happen directly inside
     // the user's tap rather than later in an effect.
-    void keepScreenAwake();
+    if (connectionStatus !== "connected") {
+      void connectHeartRateMonitor();
+      return;
+    }
+    void activateTrainingDisplay();
     if (sessionState === "ready") {
       setElapsedSeconds(0);
       heartRateTotalRef.current = 0;
@@ -398,6 +441,9 @@ export default function Home() {
     }
     setSessionState("ready");
     setElapsedSeconds(0);
+    const fullscreenDocument = document as FullscreenDocumentLike;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    else void fullscreenDocument.webkitExitFullscreen?.();
   }
 
   function readHeartRate(event: Event) {
@@ -596,7 +642,7 @@ export default function Home() {
           <div className="tracking-layer" aria-hidden="true">
             <div className="progress-marker" style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%` }} />
             <div className="target-point" title={`Objetivo: ${workoutPosition.target}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (workoutPosition.target - 50) * 2))}%` }}><span>{workoutPosition.target}%</span></div>
-            <div className="current-point" title={`Real: ${percentage}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (percentage - 50) * 2))}%` }}><span>{percentage}%</span></div>
+            {sessionState !== "ready" && <div className="current-point" title={`Real: ${percentage}%`} style={{ left: `${totalSeconds ? Math.min(100, elapsedSeconds / totalSeconds * 100) : 0}%`, bottom: `${Math.min(98, Math.max(2, (percentage - 50) * 2))}%` }}><span>{percentage}%</span></div>}
           </div>
         </div>
         <div className="time-axis" aria-label="Tiempo del circuito">
@@ -626,11 +672,18 @@ export default function Home() {
         </div>
 
         <div className="workout-controls">
-          {sessionState === "ready" && <button className="start-button" type="button" onClick={startWorkout} disabled={!segments.length}>▶ Iniciar</button>}
+          {sessionState === "ready" && connectionStatus !== "connected" && (
+            <button className="connect-to-start-button" type="button" onClick={connectHeartRateMonitor} disabled={connectionStatus === "connecting" || !segments.length}>
+              {connectionStatus === "connecting" ? "Conectando HRM…" : "♥ Conectar HRM para iniciar"}
+            </button>
+          )}
+          {sessionState === "ready" && connectionStatus === "connected" && <button className="start-button" type="button" onClick={startWorkout} disabled={!segments.length}>▶ Iniciar</button>}
           {sessionState === "running" && <button className="pause-button" type="button" onClick={pauseWorkout}>Ⅱ Pausar</button>}
           {sessionState === "paused" && <button className="start-button" type="button" onClick={startWorkout}>▶ Reanudar</button>}
           {sessionState !== "ready" && <button className="stop-button" type="button" onClick={() => finishWorkout(false)}>■ Stop</button>}
-          {sessionState !== "ready" && <span className="screen-awake" role="status">☀ Pantalla activa</span>}
+          {sessionState !== "ready" && <button className={`screen-awake ${wakeLockActive ? "active" : ""}`} type="button" onClick={activateTrainingDisplay}>
+            {wakeLockActive ? "☀ Pantalla activa" : "☀ Activar pantalla"}
+          </button>}
         </div>
 
         <label className={`simulator ${connectionStatus === "connected" ? "disabled" : ""}`}>
