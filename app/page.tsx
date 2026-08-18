@@ -576,7 +576,7 @@ export default function Home() {
           ))}
           <div className="planned-profile" aria-hidden="true">
             {segments.map((segment) => (
-              <div className="planned-segment" key={segment.id} style={{ flexGrow: segment.minutes }}>
+              <div className="planned-segment" key={segment.id} style={{ flex: `${segment.minutes} 1 0` }}>
                 <i style={{
                   clipPath: `polygon(0 ${100 - Math.max(0, segment.startPercent - 50) * 2}%, 100% ${100 - Math.max(0, segment.endPercent - 50) * 2}%, 100% 100%, 0 100%)`,
                 }} />
@@ -585,7 +585,7 @@ export default function Home() {
           </div>
           <div className="segment-duration-strip" aria-label="Duración de cada tramo">
             {segments.map((segment) => (
-              <span key={segment.id} style={{ flexGrow: segment.minutes }} title={`${segment.name}: ${segment.minutes} minutos`}>
+              <span key={segment.id} style={{ flex: `${segment.minutes} 1 0` }} title={`${segment.name}: ${segment.minutes} minutos`}>
                 <b>{segment.minutes}m</b><small>{segment.name}</small>
               </span>
             ))}
