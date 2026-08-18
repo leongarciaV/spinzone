@@ -129,6 +129,15 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .add-button { margin: 12px 20px 22px; padding: 12px 18px; border: 1px solid #496622; border-radius: 10px; background: #1a2413; color: #b7ff30; font-weight: 900; }
 .empty-view { padding: 50px 28px; }
 .empty-view p { color: var(--muted); }
+.settings-profile { margin-top: 26px; padding: 22px 0; border-block: 1px solid #282c28; }
+.audio-settings { display: grid; grid-template-columns: 1fr auto auto; gap: 20px; align-items: center; padding-top: 24px; }
+.audio-settings > div { display: flex; flex-direction: column; gap: 6px; }
+.audio-settings > div strong { font-size: 20px; }
+.audio-settings p { margin: 0; font-size: 13px; }
+.audio-toggle { display: flex; align-items: center; gap: 9px; color: #d7ddd4; font-size: 13px; }
+.audio-toggle input { width: 20px; height: 20px; accent-color: #b7ff30; }
+.audio-settings button { padding: 11px 15px; border: 1px solid #54752d; border-radius: 10px; background: #1a2413; color: #b7ff30; font-weight: 900; }
+.audio-settings button:disabled { opacity: .35; }
 .history-card { overflow: hidden; border: 1px solid #282c28; border-radius: 24px; background: #111411; }
 .history-header { padding: 24px; border-bottom: 1px solid #282c28; }
 .history-header h2 { margin: 6px 0; font-size: 32px; }
@@ -157,6 +166,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .simulator { flex-direction: column; align-items: stretch; }
   .profile-settings { grid-template-columns: 1fr 1fr; }
   .profile-settings p { grid-column: span 2; text-align: left; }
+  .audio-settings { grid-template-columns: 1fr; }
   .bottom-nav button { padding: 10px 11px; font-size: 13px; }
   .segment-row { grid-template-columns: 28px 1fr 1fr; }
   .template-title { display: block; }

@@ -148,9 +148,12 @@ export default function Home() {
   const [sessionState, setSessionState] = useState<"ready" | "running" | "paused">("ready");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [history, setHistory] = useState<WorkoutHistory[]>([]);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const heartRateTotalRef = useRef(0);
   const heartRateSamplesRef = useRef(0);
   const sessionMaximumRef = useRef(0);
+  const announcedSegmentRef = useRef(-1);
+  const warnedSegmentRef = useRef(-1);
   const [segments, setSegments] = useState<CircuitSegment[]>([
     { id: 1, name: "Calentamiento", minutes: 5, startPercent: 50, endPercent: 65 },
     { id: 2, name: "Subida", minutes: 4, startPercent: 65, endPercent: 82 },
@@ -188,10 +191,12 @@ export default function Home() {
     const savedSegments = localStorage.getItem("spinzone-segments");
     const savedName = localStorage.getItem("spinzone-circuit-name");
     const savedHistory = localStorage.getItem("spinzone-history");
+    const savedAudio = localStorage.getItem("spinzone-audio-enabled");
     if (savedAge) setAgeInput(savedAge);
     if (savedSegments) setSegments(JSON.parse(savedSegments));
     if (savedName) setCircuitName(savedName);
     if (savedHistory) setHistory(JSON.parse(savedHistory));
+    if (savedAudio !== null) setAudioEnabled(savedAudio === "true");
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
   }, []);
 
@@ -199,6 +204,7 @@ export default function Home() {
   useEffect(() => { localStorage.setItem("spinzone-segments", JSON.stringify(segments)); }, [segments]);
   useEffect(() => { localStorage.setItem("spinzone-circuit-name", circuitName); }, [circuitName]);
   useEffect(() => { localStorage.setItem("spinzone-history", JSON.stringify(history)); }, [history]);
+  useEffect(() => { localStorage.setItem("spinzone-audio-enabled", String(audioEnabled)); }, [audioEnabled]);
 
   useEffect(() => {
     sessionStateRef.current = sessionState;
@@ -245,9 +251,57 @@ export default function Home() {
     if (sessionState === "running" && totalSeconds > 0 && elapsedSeconds >= totalSeconds) finishWorkout(true);
   }, [elapsedSeconds, sessionState, totalSeconds]);
 
+  useEffect(() => {
+    if (sessionState !== "running" || !workoutPosition.segment) return;
+    const segment = workoutPosition.segment;
+    const passedSeconds = segments.slice(0, workoutPosition.index).reduce((total, item) => total + item.minutes * 60, 0);
+    const remainingSeconds = segment.minutes * 60 - (elapsedSeconds - passedSeconds);
+
+    if (announcedSegmentRef.current !== workoutPosition.index) {
+      const prefix = elapsedSeconds === 0 ? "Entrenamiento iniciado. " : "Nuevo tramo. ";
+      announce(`${prefix}${describeSegment(segment)}`);
+      announcedSegmentRef.current = workoutPosition.index;
+    }
+
+    const nextSegment = segments[workoutPosition.index + 1];
+    if (nextSegment && remainingSeconds <= 10 && remainingSeconds > 0 && warnedSegmentRef.current !== workoutPosition.index) {
+      announce(`Atención. En diez segundos comienza ${nextSegment.name}. Prepárate para ${zoneNameForPercent(nextSegment.startPercent)}.`);
+      warnedSegmentRef.current = workoutPosition.index;
+    }
+  }, [elapsedSeconds, sessionState, workoutPosition, segments]);
+
   function formatTime(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  function zoneNameForPercent(value: number) {
+    if (value >= 90) return "zona cinco";
+    if (value >= 80) return "zona cuatro";
+    if (value >= 70) return "zona tres";
+    if (value >= 60) return "zona dos";
+    return "zona uno";
+  }
+
+  function describeSegment(segment: CircuitSegment) {
+    const duration = `${segment.minutes} ${segment.minutes === 1 ? "minuto" : "minutos"}`;
+    if (segment.startPercent === segment.endPercent) {
+      return `${segment.name}. Mantén ${zoneNameForPercent(segment.endPercent)}, al ${segment.endPercent} por ciento, durante ${duration}.`;
+    }
+    const action = segment.endPercent > segment.startPercent ? "Sube progresivamente" : "Baja progresivamente";
+    return `${segment.name}. ${action} de ${segment.startPercent} a ${segment.endPercent} por ciento, hasta ${zoneNameForPercent(segment.endPercent)}, durante ${duration}.`;
+  }
+
+  function announce(message: string) {
+    if (!audioEnabled || !("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "es-MX";
+    utterance.rate = 1.05;
+    utterance.volume = 1;
+    const spanishVoice = window.speechSynthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith("es"));
+    if (spanishVoice) utterance.voice = spanishVoice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   }
 
   async function keepScreenAwake() {
@@ -289,11 +343,22 @@ export default function Home() {
       heartRateTotalRef.current = 0;
       heartRateSamplesRef.current = 0;
       sessionMaximumRef.current = 0;
+      announcedSegmentRef.current = 0;
+      warnedSegmentRef.current = -1;
+      announce(`Entrenamiento iniciado. ${describeSegment(segments[0])}`);
+    } else {
+      announce("Entrenamiento reanudado. Continúa con el ritmo indicado.");
     }
     setSessionState("running");
   }
 
+  function pauseWorkout() {
+    announce("Entrenamiento en pausa.");
+    setSessionState("paused");
+  }
+
   function finishWorkout(completed = false) {
+    announce(completed ? "Entrenamiento completado. Excelente trabajo." : "Entrenamiento detenido.");
     if (elapsedSeconds > 0) {
       const result: WorkoutHistory = {
         id: Date.now(), date: new Date().toISOString(), circuit: circuitName,
@@ -514,27 +579,10 @@ export default function Home() {
 
         <div className="workout-controls">
           {sessionState === "ready" && <button className="start-button" type="button" onClick={startWorkout} disabled={!segments.length}>▶ Iniciar</button>}
-          {sessionState === "running" && <button className="pause-button" type="button" onClick={() => setSessionState("paused")}>Ⅱ Pausar</button>}
+          {sessionState === "running" && <button className="pause-button" type="button" onClick={pauseWorkout}>Ⅱ Pausar</button>}
           {sessionState === "paused" && <button className="start-button" type="button" onClick={startWorkout}>▶ Reanudar</button>}
           {sessionState !== "ready" && <button className="stop-button" type="button" onClick={() => finishWorkout(false)}>■ Stop</button>}
           {sessionState !== "ready" && <span className="screen-awake" role="status">☀ Pantalla activa</span>}
-        </div>
-
-        <div className="profile-settings">
-          <label>
-            <span>Tu edad</span>
-            <div className="age-field">
-              <input type="number" inputMode="numeric" min="15" max="90" value={ageInput}
-                onChange={(event) => setAgeInput(event.target.value)}
-                onBlur={() => setAgeInput(String(age))} />
-              <small>años</small>
-            </div>
-          </label>
-          <div>
-            <span>FC máxima estimada</span>
-            <strong>{maximumHeartRate} ppm</strong>
-          </div>
-          <p>% actual = {heartRate} ÷ {maximumHeartRate} × 100</p>
         </div>
 
         <label className={`simulator ${connectionStatus === "connected" ? "disabled" : ""}`}>
@@ -557,8 +605,39 @@ export default function Home() {
       {activeView === "Ajustes" && (
         <section className="empty-view">
           <span className="eyebrow">AJUSTES</span>
-          <h2>Perfil cardiaco</h2>
-          <p>Edad: {age} años · Frecuencia máxima estimada: {maximumHeartRate} ppm.</p>
+          <h2>Preferencias de entrenamiento</h2>
+          <div className="profile-settings settings-profile">
+            <label>
+              <span>Tu edad</span>
+              <div className="age-field">
+                <input type="number" inputMode="numeric" min="15" max="90" value={ageInput}
+                  onChange={(event) => setAgeInput(event.target.value)}
+                  onBlur={() => setAgeInput(String(age))} />
+                <small>años</small>
+              </div>
+            </label>
+            <div>
+              <span>FC máxima estimada</span>
+              <strong>{maximumHeartRate} ppm</strong>
+            </div>
+            <p>% actual = {heartRate} ÷ {maximumHeartRate} × 100</p>
+          </div>
+          <div className="audio-settings">
+            <div>
+              <span className="label">GUÍA POR VOZ</span>
+              <strong>Avisos durante el circuito</strong>
+              <p>Informa el próximo cambio, la zona objetivo, pausas y finalización.</p>
+            </div>
+            <label className="audio-toggle">
+              <input type="checkbox" checked={audioEnabled} onChange={(event) => {
+                const enabled = event.target.checked;
+                setAudioEnabled(enabled);
+                if (!enabled && "speechSynthesis" in window) window.speechSynthesis.cancel();
+              }} />
+              <span>{audioEnabled ? "Audio activado" : "Audio silenciado"}</span>
+            </label>
+            <button type="button" disabled={!audioEnabled} onClick={() => announce("Atención. Prepárate para subir a zona cuatro. Mantén el ritmo.")}>▶ Probar voz</button>
+          </div>
         </section>
       )}
 
