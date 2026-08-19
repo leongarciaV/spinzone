@@ -54,12 +54,12 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .target-profile-line polyline { fill: none; stroke: #b7ff30; stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 4px #b7ff30); }
 .tracking-layer { position: absolute; z-index: 3; inset: 0 8px 0 82px; pointer-events: none; }
 .progress-marker { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; background: #fff9; transition: left .25s linear; }
-.current-point, .target-point { position: absolute; z-index: 4; width: 19px; height: 19px; margin-bottom: -9px; border-radius: 50%; transition: bottom .2s ease, left .25s linear; }
-.current-point { border: 4px solid white; background: #080a09; box-shadow: 0 0 0 4px #0004; }
-.target-point { z-index: 3; border: 3px solid #0b1008; background: #b7ff30; box-shadow: 0 0 0 3px #b7ff30, 0 0 14px #b7ff3099; }
+.current-point, .target-point { position: absolute; z-index: 4; border-radius: 50%; transform: translate(-50%, 50%); transition: bottom .2s ease, left .25s linear; }
+.current-point { width: 14px; height: 14px; border: 3px solid white; background: #080a09; box-shadow: 0 0 0 2px #0005; }
+.target-point { z-index: 3; width: 12px; height: 12px; border: 2px solid #0b1008; background: #b7ff30; box-shadow: 0 0 0 2px #b7ff30, 0 0 8px #b7ff3077; }
 .current-point span, .target-point span { position: absolute; left: 50%; transform: translateX(-50%); padding: 3px 5px; border-radius: 5px; background: #080a09dd; font-size: 9px; font-style: normal; font-weight: 900; white-space: nowrap; }
-.current-point span { bottom: 20px; color: white; }
-.target-point span { top: 22px; color: #b7ff30; }
+.current-point span { bottom: 17px; color: white; }
+.target-point span { top: 16px; color: #b7ff30; }
 .time-axis { position: relative; height: 19px; margin: 0 8px 0 82px; border-top: 1px solid #282c28; }
 .time-axis span { position: absolute; top: 3px; color: #aeb4ac; font-size: 8px; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
 .time-axis span:first-child { transform: none; }
