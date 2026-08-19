@@ -152,9 +152,10 @@ export default function Home() {
   const [activeView, setActiveView] = useState("Entrenar");
   const [heartRate, setHeartRate] = useState(145);
   const [firstName, setFirstName] = useState("");
-  const [ageInput, setAgeInput] = useState("47");
+  const [ageInput, setAgeInput] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [profileComplete, setProfileComplete] = useState(false);
+  const [resetConfirmation, setResetConfirmation] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "reconnecting" | "connected" | "error">("idle");
   const [sensorName, setSensorName] = useState("HRM 200");
   const [connectionMessage, setConnectionMessage] = useState("");
@@ -186,10 +187,12 @@ export default function Home() {
     { id: 3, name: "Recuperación", minutes: 2, startPercent: 65, endPercent: 65 },
   ]);
   const parsedAge = Number(ageInput);
-  const age = Number.isFinite(parsedAge) && parsedAge >= 15 && parsedAge <= 90 ? parsedAge : 47;
-  const maximumHeartRate = 220 - age;
+  const validAge = /^\d{2}$/.test(ageInput) && Number.isFinite(parsedAge) && parsedAge >= 10 && parsedAge <= 99;
+  const validFirstName = /^\p{L}{1,10}$/u.test(firstName.trim());
+  const age = validAge ? parsedAge : 0;
+  const maximumHeartRate = age ? 220 - age : 0;
   const totalSeconds = segments.reduce((total, segment) => total + segment.minutes * 60, 0);
-  const percentage = Math.round((heartRate / maximumHeartRate) * 100);
+  const percentage = maximumHeartRate ? Math.round((heartRate / maximumHeartRate) * 100) : 0;
   const activeZone = useMemo(() => {
     if (percentage >= 90) return zones[0];
     if (percentage >= 80) return zones[1];
@@ -251,7 +254,7 @@ export default function Home() {
     if (savedHistory) setHistory(JSON.parse(savedHistory));
     if (savedAudio !== null) setAudioEnabled(savedAudio === "true");
     const savedAgeNumber = Number(savedAge);
-    setProfileComplete(Boolean(savedFirstName?.trim()) && Number.isFinite(savedAgeNumber) && savedAgeNumber >= 15 && savedAgeNumber <= 90);
+    setProfileComplete(Boolean(savedFirstName && /^\p{L}{1,10}$/u.test(savedFirstName)) && Number.isFinite(savedAgeNumber) && /^\d{2}$/.test(savedAge || "") && savedAgeNumber >= 10 && savedAgeNumber <= 99);
     setProfileLoaded(true);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
   }, []);
@@ -616,12 +619,31 @@ export default function Home() {
   function saveInitialProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanName = firstName.trim();
-    if (!cleanName || age < 15 || age > 90) return;
+    if (!/^\p{L}{1,10}$/u.test(cleanName) || !validAge) return;
     setFirstName(cleanName);
     setAgeInput(String(age));
     localStorage.setItem("spinzone-first-name", cleanName);
     localStorage.setItem("spinzone-age", String(age));
     setProfileComplete(true);
+  }
+
+  function updateFirstName(value: string) {
+    setFirstName(value.replace(/[^\p{L}]/gu, "").slice(0, 10));
+  }
+
+  function updateAge(value: string) {
+    setAgeInput(value.replace(/\D/g, "").slice(0, 2));
+  }
+
+  function clearAllLocalData() {
+    if (!resetConfirmation) {
+      setResetConfirmation(true);
+      return;
+    }
+    localStorage.clear();
+    noSleepRef.current?.disable();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    window.location.reload();
   }
 
   return (
@@ -634,17 +656,17 @@ export default function Home() {
             <p>Usaremos tu edad para calcular las zonas cardiacas y tu nombre para identificar tus sesiones.</p>
             <label>
               <span>Nombre de pila</span>
-              <input autoComplete="given-name" enterKeyHint="next" maxLength={30} value={firstName}
+              <input autoComplete="given-name" enterKeyHint="next" maxLength={10} value={firstName}
                 onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
-                onChange={(event) => setFirstName(event.target.value)} placeholder="Ej. Leon" />
+                onChange={(event) => updateFirstName(event.target.value)} placeholder="Ej. Leon" />
             </label>
             <label>
               <span>Edad</span>
-              <input type="number" inputMode="numeric" enterKeyHint="done" min="15" max="90" value={ageInput}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" maxLength={2} value={ageInput}
                 onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
-                onChange={(event) => setAgeInput(event.target.value)} />
+                onChange={(event) => updateAge(event.target.value)} placeholder="10–99" />
             </label>
-            <button type="submit" disabled={!firstName.trim() || !Number.isFinite(parsedAge) || parsedAge < 15 || parsedAge > 90}>Guardar y continuar</button>
+            <button type="submit" disabled={!validFirstName || !validAge}>Guardar y continuar</button>
             <small>Estos datos se guardan únicamente en este dispositivo.</small>
           </form>
         </div>
@@ -783,16 +805,16 @@ export default function Home() {
           <div className="profile-settings settings-profile">
             <label>
               <span>Nombre de pila</span>
-              <input className="name-field" autoComplete="given-name" maxLength={30} value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                onBlur={() => setFirstName((current) => current.trim() || "Usuario")} />
+              <input className="name-field" autoComplete="given-name" maxLength={10} value={firstName}
+                onChange={(event) => updateFirstName(event.target.value)}
+                onBlur={() => { if (!/^\p{L}{1,10}$/u.test(firstName.trim())) setProfileComplete(false); }} />
             </label>
             <label>
               <span>Tu edad</span>
               <div className="age-field">
-                <input type="number" inputMode="numeric" min="15" max="90" value={ageInput}
-                  onChange={(event) => setAgeInput(event.target.value)}
-                  onBlur={() => setAgeInput(String(age))} />
+                <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} value={ageInput}
+                  onChange={(event) => updateAge(event.target.value)}
+                  onBlur={() => { if (!validAge) setProfileComplete(false); }} />
                 <small>años</small>
               </div>
             </label>
@@ -817,6 +839,16 @@ export default function Home() {
               <span>{audioEnabled ? "Audio activado" : "Audio silenciado"}</span>
             </label>
             <button type="button" disabled={!audioEnabled} onClick={() => announce("Atención. Prepárate para subir a zona cuatro. Mantén el ritmo.")}>▶ Probar voz</button>
+          </div>
+          <div className="data-settings">
+            <div>
+              <span className="label">DATOS LOCALES</span>
+              <strong>Borrar perfiles e historial</strong>
+              <p>Elimina nombre, edad, circuitos, preferencias y entrenamientos guardados en este dispositivo.</p>
+            </div>
+            <button className={resetConfirmation ? "confirm" : ""} type="button" onClick={clearAllLocalData} onBlur={() => setResetConfirmation(false)}>
+              {resetConfirmation ? "Confirmar borrado total" : "Borrar todos los datos"}
+            </button>
           </div>
         </section>
       )}
