@@ -68,6 +68,7 @@ interface WorkoutHistory {
   averageHeartRate: number;
   maximumHeartRate: number;
   completed: boolean;
+  userName?: string;
 }
 
 function makeMtbProfileProgressive(template: CircuitTemplate): CircuitTemplate {
@@ -150,7 +151,10 @@ const zones = [
 export default function Home() {
   const [activeView, setActiveView] = useState("Entrenar");
   const [heartRate, setHeartRate] = useState(145);
+  const [firstName, setFirstName] = useState("");
   const [ageInput, setAgeInput] = useState("47");
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "reconnecting" | "connected" | "error">("idle");
   const [sensorName, setSensorName] = useState("HRM 200");
   const [connectionMessage, setConnectionMessage] = useState("");
@@ -235,19 +239,25 @@ export default function Home() {
 
   useEffect(() => {
     const savedAge = localStorage.getItem("spinzone-age");
+    const savedFirstName = localStorage.getItem("spinzone-first-name");
     const savedSegments = localStorage.getItem("spinzone-segments");
     const savedName = localStorage.getItem("spinzone-circuit-name");
     const savedHistory = localStorage.getItem("spinzone-history");
     const savedAudio = localStorage.getItem("spinzone-audio-enabled");
     if (savedAge) setAgeInput(savedAge);
+    if (savedFirstName) setFirstName(savedFirstName);
     if (savedSegments) setSegments(JSON.parse(savedSegments));
     if (savedName) setCircuitName(savedName);
     if (savedHistory) setHistory(JSON.parse(savedHistory));
     if (savedAudio !== null) setAudioEnabled(savedAudio === "true");
+    const savedAgeNumber = Number(savedAge);
+    setProfileComplete(Boolean(savedFirstName?.trim()) && Number.isFinite(savedAgeNumber) && savedAgeNumber >= 15 && savedAgeNumber <= 90);
+    setProfileLoaded(true);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
   }, []);
 
-  useEffect(() => { localStorage.setItem("spinzone-age", ageInput); }, [ageInput]);
+  useEffect(() => { if (profileLoaded) localStorage.setItem("spinzone-age", ageInput); }, [ageInput, profileLoaded]);
+  useEffect(() => { if (profileLoaded) localStorage.setItem("spinzone-first-name", firstName); }, [firstName, profileLoaded]);
   useEffect(() => { localStorage.setItem("spinzone-segments", JSON.stringify(segments)); }, [segments]);
   useEffect(() => { localStorage.setItem("spinzone-circuit-name", circuitName); }, [circuitName]);
   useEffect(() => { localStorage.setItem("spinzone-history", JSON.stringify(history)); }, [history]);
@@ -461,6 +471,7 @@ export default function Home() {
     if (elapsedSeconds > 0) {
       const result: WorkoutHistory = {
         id: Date.now(), date: new Date().toISOString(), circuit: circuitName,
+        userName: firstName.trim(),
         durationSeconds: elapsedSeconds,
         averageHeartRate: heartRateSamplesRef.current ? Math.round(heartRateTotalRef.current / heartRateSamplesRef.current) : heartRate,
         maximumHeartRate: sessionMaximumRef.current || heartRate, completed,
@@ -602,11 +613,41 @@ export default function Home() {
     }
   }
 
+  function saveInitialProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanName = firstName.trim();
+    if (!cleanName || age < 15 || age > 90) return;
+    setFirstName(cleanName);
+    setAgeInput(String(age));
+    localStorage.setItem("spinzone-first-name", cleanName);
+    localStorage.setItem("spinzone-age", String(age));
+    setProfileComplete(true);
+  }
+
   return (
     <main className={`app-shell ${activeView === "Entrenar" ? "training-view" : ""} ${sessionState !== "ready" ? "session-active" : ""}`}>
+      {profileLoaded && !profileComplete && (
+        <div className="onboarding-backdrop" role="presentation">
+          <form className="onboarding-card" onSubmit={saveInitialProfile} aria-labelledby="onboarding-title">
+            <span className="eyebrow">BIENVENIDO A SPINZONE</span>
+            <h2 id="onboarding-title">Crea tu perfil de entrenamiento</h2>
+            <p>Usaremos tu edad para calcular las zonas cardiacas y tu nombre para identificar tus sesiones.</p>
+            <label>
+              <span>Nombre de pila</span>
+              <input autoFocus autoComplete="given-name" maxLength={30} value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Ej. Leon" />
+            </label>
+            <label>
+              <span>Edad</span>
+              <input type="number" inputMode="numeric" min="15" max="90" value={ageInput} onChange={(event) => setAgeInput(event.target.value)} />
+            </label>
+            <button type="submit" disabled={!firstName.trim() || !Number.isFinite(parsedAge) || parsedAge < 15 || parsedAge > 90}>Guardar y continuar</button>
+            <small>Estos datos se guardan únicamente en este dispositivo.</small>
+          </form>
+        </div>
+      )}
       <header className="topbar">
         <div>
-          <span className="eyebrow">SPINZONE</span>
+          <span className="eyebrow">SPINZONE{firstName ? ` · HOLA, ${firstName.toUpperCase()}` : ""}</span>
           <h1>Entrena por pulso,<br />no por adivinanzas.</h1>
         </div>
         <div className="topbar-actions">
@@ -729,13 +770,19 @@ export default function Home() {
       {activeView === "Circuitos" && <CircuitEditor segments={segments} setSegments={setSegments}
         circuitName={circuitName} setCircuitName={setCircuitName} onTrain={() => setActiveView("Entrenar")} />}
 
-      {activeView === "Historial" && <HistoryView history={history} formatTime={formatTime} />}
+      {activeView === "Historial" && <HistoryView history={history} formatTime={formatTime} currentUserName={firstName} />}
 
       {activeView === "Ajustes" && (
         <section className="empty-view">
           <span className="eyebrow">AJUSTES</span>
           <h2>Preferencias de entrenamiento</h2>
           <div className="profile-settings settings-profile">
+            <label>
+              <span>Nombre de pila</span>
+              <input className="name-field" autoComplete="given-name" maxLength={30} value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                onBlur={() => setFirstName((current) => current.trim() || "Usuario")} />
+            </label>
             <label>
               <span>Tu edad</span>
               <div className="age-field">
@@ -894,15 +941,15 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
   );
 }
 
-function HistoryView({ history, formatTime }: { history: WorkoutHistory[]; formatTime: (seconds: number) => string }) {
+function HistoryView({ history, formatTime, currentUserName }: { history: WorkoutHistory[]; formatTime: (seconds: number) => string; currentUserName: string }) {
   return (
     <section className="history-card">
-      <div className="history-header"><span className="label">HISTORIAL LOCAL</span><h2>Mis entrenamientos</h2><p>Guardados en este dispositivo y disponibles sin conexión.</p></div>
+      <div className="history-header"><span className="label">HISTORIAL LOCAL</span><h2>Entrenamientos de {currentUserName || "la familia"}</h2><p>Guardados en este dispositivo y disponibles sin conexión.</p></div>
       {history.length === 0 ? <div className="history-empty">Aún no hay sesiones. Inicia un entrenamiento para crear la primera.</div> : (
         <div className="history-list">
           {history.map((item) => (
             <article key={item.id}>
-              <div><small>{new Date(item.date).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}</small><strong>{item.circuit}</strong></div>
+              <div><small>{item.userName || currentUserName || "Usuario"} · {new Date(item.date).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}</small><strong>{item.circuit}</strong></div>
               <span>{formatTime(item.durationSeconds)}<small>tiempo</small></span>
               <span>{item.averageHeartRate}<small>ppm media</small></span>
               <span>{item.maximumHeartRate}<small>ppm máxima</small></span>
