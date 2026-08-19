@@ -225,7 +225,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .segment-name { grid-column: span 2; }
   .delete-button { grid-column: 3; }
   .onboarding-backdrop { align-items: start; padding: max(12px, env(safe-area-inset-top)) 12px 12px; }
-  .onboarding-card { max-height: calc(100dvh - max(24px, env(safe-area-inset-top))); padding: 20px; border-radius: 18px; }
+  .onboarding-card { max-height: calc(100svh - max(24px, env(safe-area-inset-top))); padding: 20px; scroll-padding-block: 16px; border-radius: 18px; }
   .onboarding-card h2 { margin-top: 6px; font-size: 27px; }
   .onboarding-card p { margin-bottom: 14px; font-size: 13px; line-height: 1.4; }
   .onboarding-card label { margin-top: 10px; }

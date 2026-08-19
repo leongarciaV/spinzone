@@ -657,13 +657,11 @@ export default function Home() {
             <label>
               <span>Nombre de pila</span>
               <input autoComplete="given-name" enterKeyHint="next" maxLength={10} value={firstName}
-                onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
                 onChange={(event) => updateFirstName(event.target.value)} placeholder="Ej. Leon" />
             </label>
             <label>
               <span>Edad</span>
               <input type="text" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" maxLength={2} value={ageInput}
-                onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
                 onChange={(event) => updateAge(event.target.value)} placeholder="10–99" />
             </label>
             <button type="submit" disabled={!validFirstName || !validAge}>Guardar y continuar</button>
