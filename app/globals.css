@@ -92,9 +92,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .age-field small, .profile-settings p { color: var(--muted); }
 .profile-settings strong { font-size: 20px; }
 .profile-settings p { margin: 0 0 7px; font-size: 13px; text-align: right; }
-.simulator { display: flex; gap: 18px; align-items: center; padding: 18px 24px; color: var(--muted); font-size: 13px; }
-.simulator input { width: 100%; accent-color: #b7ff30; }
-.simulator.disabled { opacity: .35; }
 .bottom-nav { position: fixed; z-index: 5; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; padding: 6px; border: 1px solid #303530; border-radius: 99px; background: #111411e8; backdrop-filter: blur(14px); }
 .bottom-nav button { border: 0; background: transparent; padding: 11px 18px; border-radius: 99px; color: var(--muted); }
 .bottom-nav .active { background: #b7ff30; color: #0b1008; font-weight: 900; }
@@ -203,7 +200,6 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .pulse strong, .percent strong { font-size: 40px; }
   .workout-controls { flex-wrap: wrap; }
   .screen-awake { width: 100%; text-align: center; }
-  .simulator { flex-direction: column; align-items: stretch; }
   .profile-settings { grid-template-columns: 1fr 1fr; }
   .profile-settings p { grid-column: span 2; text-align: left; }
   .audio-settings { grid-template-columns: 1fr; }
@@ -239,8 +235,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .training-view .topbar,
   .training-view .connection-message,
   .training-view .bottom-nav,
-  .training-view .chart-legend,
-  .training-view .simulator { display: none; }
+  .training-view .chart-legend { display: none; }
   .training-view .workout-card { width: 100%; height: 100%; display: grid; grid-template-rows: minmax(48px, auto) minmax(100px, 1fr) 56px 44px; border-radius: 12px; }
   .training-view .session-head { min-width: 0; padding: 6px 12px; }
   .training-view .session-head > div:first-child { min-width: 0; }
@@ -276,8 +271,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .session-active .topbar,
   .session-active .connection-message,
   .session-active .bottom-nav,
-  .session-active .chart-legend,
-  .session-active .simulator { display: none; }
+  .session-active .chart-legend { display: none; }
   .session-active .workout-card { height: calc(100svh - 12px); display: grid; grid-template-rows: auto minmax(180px, 1fr) auto auto; }
   .session-active .chart-block { min-height: 0; display: flex; flex-direction: column; }
   .session-active .chart { height: auto; min-height: 0; flex: 1; }

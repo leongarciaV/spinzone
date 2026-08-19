@@ -138,6 +138,51 @@ const circuitTemplates: CircuitTemplate[] = ([
     { name: "Umbral final", minutes: 5, startPercent: 80, endPercent: 88 },
     { name: "Enfriamiento", minutes: 5, startPercent: 64, endPercent: 50 },
   ]},
+  { name: "Senderos ondulados", difficulty: "Media", focus: "Cambios de terreno y control aeróbico", segments: [
+    { name: "Calentamiento", minutes: 10, startPercent: 50, endPercent: 65 },
+    { name: "Loma tendida", minutes: 8, startPercent: 65, endPercent: 74 },
+    { name: "Bajada técnica", minutes: 4, startPercent: 74, endPercent: 64 },
+    { name: "Sendero ascendente", minutes: 8, startPercent: 64, endPercent: 78 },
+    { name: "Bajada fluida", minutes: 4, startPercent: 78, endPercent: 64 },
+    { name: "Loma constante", minutes: 8, startPercent: 64, endPercent: 76 },
+    { name: "Descanso rodando", minutes: 4, startPercent: 76, endPercent: 64 },
+    { name: "Falso llano", minutes: 8, startPercent: 64, endPercent: 75 },
+    { name: "Enfriamiento", minutes: 6, startPercent: 75, endPercent: 50 },
+  ]},
+  { name: "Ascenso largo MTB", difficulty: "Media", focus: "Resistencia para subidas prolongadas", segments: [
+    { name: "Calentamiento", minutes: 10, startPercent: 50, endPercent: 65 },
+    { name: "Aproximación", minutes: 12, startPercent: 65, endPercent: 72 },
+    { name: "Respiro", minutes: 5, startPercent: 72, endPercent: 64 },
+    { name: "Puerto largo", minutes: 15, startPercent: 64, endPercent: 82 },
+    { name: "Descenso", minutes: 5, startPercent: 82, endPercent: 65 },
+    { name: "Regreso con ritmo", minutes: 8, startPercent: 65, endPercent: 76 },
+    { name: "Enfriamiento", minutes: 5, startPercent: 76, endPercent: 50 },
+  ]},
+  { name: "Puertos encadenados", difficulty: "Exigente", focus: "Subidas sucesivas y recuperación técnica", segments: [
+    { name: "Calentamiento", minutes: 10, startPercent: 50, endPercent: 68 },
+    { name: "Puerto 1", minutes: 8, startPercent: 68, endPercent: 84 },
+    { name: "Descenso 1", minutes: 4, startPercent: 84, endPercent: 64 },
+    { name: "Puerto 2", minutes: 10, startPercent: 64, endPercent: 87 },
+    { name: "Descenso 2", minutes: 4, startPercent: 87, endPercent: 62 },
+    { name: "Puerto 3", minutes: 8, startPercent: 62, endPercent: 88 },
+    { name: "Descenso 3", minutes: 4, startPercent: 88, endPercent: 64 },
+    { name: "Ataque final", minutes: 7, startPercent: 64, endPercent: 90 },
+    { name: "Enfriamiento", minutes: 5, startPercent: 90, endPercent: 50 },
+  ]},
+  { name: "XCO vuelta rápida", difficulty: "Exigente", focus: "Ritmo de carrera, repechos y tramos técnicos", segments: [
+    { name: "Calentamiento", minutes: 10, startPercent: 50, endPercent: 70 },
+    { name: "Salida XCO", minutes: 5, startPercent: 70, endPercent: 88 },
+    { name: "Recuperación", minutes: 3, startPercent: 88, endPercent: 65 },
+    { name: "Subida técnica", minutes: 6, startPercent: 65, endPercent: 86 },
+    { name: "Descenso técnico", minutes: 3, startPercent: 86, endPercent: 62 },
+    { name: "Repecho", minutes: 6, startPercent: 62, endPercent: 89 },
+    { name: "Recuperación", minutes: 3, startPercent: 89, endPercent: 64 },
+    { name: "Singletrack", minutes: 6, startPercent: 64, endPercent: 82 },
+    { name: "Ritmo de carrera", minutes: 6, startPercent: 82, endPercent: 84 },
+    { name: "Respiro", minutes: 3, startPercent: 84, endPercent: 62 },
+    { name: "Vuelta final", minutes: 6, startPercent: 62, endPercent: 92 },
+    { name: "Enfriamiento", minutes: 3, startPercent: 92, endPercent: 50 },
+  ]},
 ] satisfies CircuitTemplate[]).map(makeMtbProfileProgressive);
 
 const zones = [
@@ -150,7 +195,7 @@ const zones = [
 
 export default function Home() {
   const [activeView, setActiveView] = useState("Entrenar");
-  const [heartRate, setHeartRate] = useState(145);
+  const [heartRate, setHeartRate] = useState(0);
   const [firstName, setFirstName] = useState("");
   const [ageInput, setAgeInput] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -170,7 +215,7 @@ export default function Home() {
   const noSleepRef = useRef<NoSleep | null>(null);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const sessionStateRef = useRef<"ready" | "running" | "paused">("ready");
-  const latestHeartRateRef = useRef(145);
+  const latestHeartRateRef = useRef(0);
   const [circuitName, setCircuitName] = useState("Mi circuito");
   const [sessionState, setSessionState] = useState<"ready" | "running" | "paused">("ready");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -748,12 +793,12 @@ export default function Home() {
         <div className="metrics">
           <div className="pulse">
             <span className="heart">♥</span>
-            <strong>{heartRate}</strong>
+            <strong>{connectionStatus === "connected" ? heartRate : "—"}</strong>
             <small>ppm</small>
           </div>
           <div className="percent" style={{ color: activeZone.color }}>
-            <strong>{percentage}%</strong>
-            <span>{activeZone.name}</span>
+            <strong>{connectionStatus === "connected" ? `${percentage}%` : "—"}</strong>
+            <span>{connectionStatus === "connected" ? activeZone.name : "SIN HRM"}</span>
           </div>
           <div className="target">
             <span>OBJETIVO ACTUAL</span>
@@ -779,16 +824,6 @@ export default function Home() {
           </button>}
         </div>
 
-        <label className={`simulator ${connectionStatus === "connected" ? "disabled" : ""}`}>
-          <span>Simular frecuencia cardiaca</span>
-          <input type="range" min="80" max="195" value={heartRate}
-            disabled={connectionStatus === "connected"}
-            onChange={(event) => {
-              const bpm = Number(event.target.value);
-              latestHeartRateRef.current = bpm;
-              setHeartRate(bpm);
-            }} />
-        </label>
       </section>}
 
       {activeView === "Circuitos" && <CircuitEditor segments={segments} setSegments={setSegments}
