@@ -634,11 +634,15 @@ export default function Home() {
             <p>Usaremos tu edad para calcular las zonas cardiacas y tu nombre para identificar tus sesiones.</p>
             <label>
               <span>Nombre de pila</span>
-              <input autoFocus autoComplete="given-name" maxLength={30} value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Ej. Leon" />
+              <input autoComplete="given-name" enterKeyHint="next" maxLength={30} value={firstName}
+                onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
+                onChange={(event) => setFirstName(event.target.value)} placeholder="Ej. Leon" />
             </label>
             <label>
               <span>Edad</span>
-              <input type="number" inputMode="numeric" min="15" max="90" value={ageInput} onChange={(event) => setAgeInput(event.target.value)} />
+              <input type="number" inputMode="numeric" enterKeyHint="done" min="15" max="90" value={ageInput}
+                onFocus={(event) => window.setTimeout(() => event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" }), 250)}
+                onChange={(event) => setAgeInput(event.target.value)} />
             </label>
             <button type="submit" disabled={!firstName.trim() || !Number.isFinite(parsedAge) || parsedAge < 15 || parsedAge > 90}>Guardar y continuar</button>
             <small>Estos datos se guardan únicamente en este dispositivo.</small>
