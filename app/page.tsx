@@ -69,6 +69,9 @@ interface WorkoutHistory {
   maximumHeartRate: number;
   completed: boolean;
   userName?: string;
+  estimatedMaximumHeartRate?: number;
+  heartRateSeries?: Array<[second: number, bpm: number, targetPercent: number]>;
+  workoutSegments?: CircuitSegment[];
 }
 
 function makeMtbProfileProgressive(template: CircuitTemplate): CircuitTemplate {
@@ -224,6 +227,8 @@ export default function Home() {
   const heartRateTotalRef = useRef(0);
   const heartRateSamplesRef = useRef(0);
   const sessionMaximumRef = useRef(0);
+  const heartRateSeriesRef = useRef<Array<[number, number, number]>>([]);
+  const workoutTargetRef = useRef(0);
   const announcedSegmentRef = useRef(-1);
   const warnedSegmentRef = useRef(-1);
   const [segments, setSegments] = useState<CircuitSegment[]>([
@@ -265,6 +270,7 @@ export default function Home() {
     }
     return { segment: undefined, index: 0, target: 0, elapsedInSegment: 0, remainingInSegment: 0 };
   }, [elapsedSeconds, segments]);
+  workoutTargetRef.current = workoutPosition.target;
 
   const targetProfilePoints = useMemo(() => {
     if (!totalSeconds) return "";
@@ -353,7 +359,11 @@ export default function Home() {
       heartRateTotalRef.current += latestHeartRateRef.current;
       heartRateSamplesRef.current += 1;
       sessionMaximumRef.current = Math.max(sessionMaximumRef.current, latestHeartRateRef.current);
-      setElapsedSeconds((current) => Math.min(current + 1, totalSeconds));
+      setElapsedSeconds((current) => {
+        const nextSecond = Math.min(current + 1, totalSeconds);
+        if (nextSecond > current) heartRateSeriesRef.current.push([nextSecond, latestHeartRateRef.current, workoutTargetRef.current]);
+        return nextSecond;
+      });
     }, 1000);
     return () => window.clearInterval(timer);
   }, [sessionState, totalSeconds]);
@@ -500,6 +510,7 @@ export default function Home() {
       heartRateTotalRef.current = 0;
       heartRateSamplesRef.current = 0;
       sessionMaximumRef.current = 0;
+      heartRateSeriesRef.current = [];
       announcedSegmentRef.current = 0;
       warnedSegmentRef.current = -1;
       announce(`Entrenamiento iniciado. ${describeSegment(segments[0])}`);
@@ -520,6 +531,9 @@ export default function Home() {
       const result: WorkoutHistory = {
         id: Date.now(), date: new Date().toISOString(), circuit: circuitName,
         userName: firstName.trim(),
+        estimatedMaximumHeartRate: maximumHeartRate,
+        heartRateSeries: heartRateSeriesRef.current.slice(),
+        workoutSegments: segments.map((segment) => ({ ...segment })),
         durationSeconds: elapsedSeconds,
         averageHeartRate: heartRateSamplesRef.current ? Math.round(heartRateTotalRef.current / heartRateSamplesRef.current) : heartRate,
         maximumHeartRate: sessionMaximumRef.current || heartRate, completed,
@@ -1011,22 +1025,199 @@ function CircuitEditor({ segments, setSegments, circuitName, setCircuitName, onT
 }
 
 function HistoryView({ history, formatTime, currentUserName }: { history: WorkoutHistory[]; formatTime: (seconds: number) => string; currentUserName: string }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   return (
     <section className="history-card">
       <div className="history-header"><span className="label">HISTORIAL LOCAL</span><h2>Entrenamientos de {currentUserName || "la familia"}</h2><p>Guardados en este dispositivo y disponibles sin conexión.</p></div>
       {history.length === 0 ? <div className="history-empty">Aún no hay sesiones. Inicia un entrenamiento para crear la primera.</div> : (
         <div className="history-list">
           {history.map((item) => (
-            <article key={item.id}>
-              <div><small>{item.userName || currentUserName || "Usuario"} · {new Date(item.date).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}</small><strong>{item.circuit}</strong></div>
-              <span>{formatTime(item.durationSeconds)}<small>tiempo</small></span>
-              <span>{item.averageHeartRate}<small>ppm media</small></span>
-              <span>{item.maximumHeartRate}<small>ppm máxima</small></span>
-              <b className={item.completed ? "completed" : "stopped"}>{item.completed ? "Completado" : "Detenido"}</b>
-            </article>
+            <div className="history-entry" key={item.id}>
+              <article>
+                <div><small>{item.userName || currentUserName || "Usuario"} · {new Date(item.date).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}</small><strong>{item.circuit}</strong></div>
+                <span>{formatTime(item.durationSeconds)}<small>tiempo</small></span>
+                <span>{item.averageHeartRate}<small>ppm media</small></span>
+                <span>{item.maximumHeartRate}<small>ppm máxima</small></span>
+                <b className={item.completed ? "completed" : "stopped"}>{item.completed ? "Completado" : "Detenido"}</b>
+                <button className="history-detail-button" type="button" onClick={() => setExpandedId((current) => current === item.id ? null : item.id)}>
+                  {expandedId === item.id ? "Ocultar" : "Ver recorrido"}
+                </button>
+              </article>
+              {expandedId === item.id && (
+                <div className="history-detail">
+                  {item.heartRateSeries?.length ? (
+                    <>
+                      <WorkoutHistogram item={item} formatTime={formatTime} />
+                      <button className="excel-button" type="button" onClick={() => void downloadWorkoutExcel(item, formatTime)}>↓ Descargar Excel con gráfica</button>
+                    </>
+                  ) : <p>Esta sesión fue guardada antes de activar el registro completo del recorrido.</p>}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
     </section>
   );
+}
+
+function WorkoutHistogram({ item, formatTime }: { item: WorkoutHistory; formatTime: (seconds: number) => string }) {
+  const series = item.heartRateSeries || [];
+  const columns = useMemo(() => binHeartRateSeries(series, 120), [series]);
+  const maximumBpm = Math.max(200, item.estimatedMaximumHeartRate || 0, ...columns.map((column) => column.bpm + 10));
+  const chartHeight = 170;
+  const chartTop = 12;
+  const chartBottom = chartTop + chartHeight;
+  const targetPoints = columns.map((column, index) => {
+    const x = columns.length > 1 ? index / (columns.length - 1) * 1000 : 0;
+    const targetBpm = column.targetPercent / 100 * (item.estimatedMaximumHeartRate || maximumBpm);
+    const y = chartBottom - targetBpm / maximumBpm * chartHeight;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  return (
+    <div className="history-chart">
+      <div className="history-chart-title"><strong>Frecuencia durante el recorrido</strong><span>■ Pulso real&nbsp;&nbsp;— Objetivo</span></div>
+      <svg viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Histograma de frecuencia cardiaca durante el entrenamiento">
+        {[0, .25, .5, .75, 1].map((position) => <line key={position} x1="0" x2="1000" y1={chartTop + chartHeight * position} y2={chartTop + chartHeight * position} />)}
+        {columns.map((column, index) => {
+          const width = 1000 / Math.max(columns.length, 1);
+          const height = column.bpm / maximumBpm * chartHeight;
+          return <rect key={index} x={index * width} y={chartBottom - height} width={Math.max(1, width - .8)} height={height} />;
+        })}
+        <polyline points={targetPoints} />
+        <text x="0" y="214">00:00</text>
+        <text x="500" y="214" textAnchor="middle">{formatTime(Math.round(item.durationSeconds / 2))}</text>
+        <text x="1000" y="214" textAnchor="end">{formatTime(item.durationSeconds)}</text>
+      </svg>
+    </div>
+  );
+}
+
+function binHeartRateSeries(series: Array<[number, number, number]>, maximumColumns: number) {
+  if (!series.length) return [];
+  const binSize = Math.max(1, Math.ceil(series.length / maximumColumns));
+  const columns: Array<{ bpm: number; targetPercent: number }> = [];
+  for (let index = 0; index < series.length; index += binSize) {
+    const bin = series.slice(index, index + binSize);
+    columns.push({
+      bpm: Math.round(bin.reduce((total, sample) => total + sample[1], 0) / bin.length),
+      targetPercent: Math.round(bin.reduce((total, sample) => total + sample[2], 0) / bin.length),
+    });
+  }
+  return columns;
+}
+
+function createWorkoutChartImage(item: WorkoutHistory) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 480;
+  const context = canvas.getContext("2d");
+  if (!context) return "";
+  const series = binHeartRateSeries(item.heartRateSeries || [], 240);
+  const maximumBpm = Math.max(200, item.estimatedMaximumHeartRate || 0, ...series.map((sample) => sample.bpm + 10));
+  const left = 70, right = 1160, top = 55, bottom = 410;
+  context.fillStyle = "#111411";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#f5f7f2";
+  context.font = "bold 26px Arial";
+  context.fillText(`${item.circuit} · ${item.userName || "Usuario"}`, left, 34);
+  context.strokeStyle = "#374037";
+  context.lineWidth = 1;
+  for (let step = 0; step <= 4; step += 1) {
+    const y = top + (bottom - top) * step / 4;
+    context.beginPath(); context.moveTo(left, y); context.lineTo(right, y); context.stroke();
+  }
+  const width = (right - left) / Math.max(series.length, 1);
+  context.fillStyle = "#1db7d8";
+  series.forEach((sample, index) => {
+    const height = sample.bpm / maximumBpm * (bottom - top);
+    context.fillRect(left + index * width, bottom - height, Math.max(1, width - 1), height);
+  });
+  context.strokeStyle = "#b7ff30";
+  context.lineWidth = 4;
+  context.beginPath();
+  series.forEach((sample, index) => {
+    const x = left + index / Math.max(series.length - 1, 1) * (right - left);
+    const targetBpm = sample.targetPercent / 100 * (item.estimatedMaximumHeartRate || maximumBpm);
+    const y = bottom - targetBpm / maximumBpm * (bottom - top);
+    if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+  });
+  context.stroke();
+  context.fillStyle = "#aeb4ac";
+  context.font = "18px Arial";
+  context.fillText("Pulso real (barras) · Objetivo (línea verde)", left, 455);
+  return canvas.toDataURL("image/png");
+}
+
+async function downloadWorkoutExcel(item: WorkoutHistory, formatTime: (seconds: number) => string) {
+  if (!item.heartRateSeries?.length) return;
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SpinZone";
+  workbook.created = new Date();
+  const summary = workbook.addWorksheet("Resumen", { views: [{ showGridLines: false }] });
+  summary.columns = [{ width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }];
+  summary.mergeCells("A1:D1");
+  summary.getCell("A1").value = "SpinZone · Recorrido de entrenamiento";
+  summary.getCell("A1").font = { bold: true, size: 20, color: { argb: "FFFFFFFF" } };
+  summary.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF111411" } };
+  summary.getRow(1).height = 34;
+  const summaryRows: Array<[string, string | number]> = [
+    ["Deportista", item.userName || "Usuario"], ["Circuito", item.circuit],
+    ["Fecha", new Date(item.date).toLocaleString("es")], ["Duración", formatTime(item.durationSeconds)],
+    ["Frecuencia media", item.averageHeartRate], ["Frecuencia máxima", item.maximumHeartRate],
+    ["Estado", item.completed ? "Completado" : "Detenido"],
+  ];
+  summaryRows.forEach(([label, value], index) => {
+    const row = index + 3;
+    summary.getCell(row, 1).value = label;
+    summary.getCell(row, 1).font = { bold: true, color: { argb: "FF61705E" } };
+    summary.getCell(row, 2).value = value;
+  });
+  const chartImage = createWorkoutChartImage(item);
+  if (chartImage) {
+    const imageId = workbook.addImage({ base64: chartImage, extension: "png" });
+    summary.addImage(imageId, { tl: { col: 0, row: 11 }, ext: { width: 900, height: 360 } });
+  }
+  const data = workbook.addWorksheet("Datos");
+  data.columns = [
+    { header: "Segundo", key: "second", width: 12 }, { header: "Tiempo", key: "time", width: 14 },
+    { header: "Pulso real (ppm)", key: "bpm", width: 20 }, { header: "Objetivo (%)", key: "target", width: 18 },
+    { header: "Objetivo (ppm)", key: "targetBpm", width: 20 },
+  ];
+  data.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  data.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF111411" } };
+  item.heartRateSeries.forEach(([second, bpm, targetPercent]) => data.addRow({
+    second, time: formatTime(second), bpm, target: targetPercent / 100,
+    targetBpm: Math.round(targetPercent / 100 * (item.estimatedMaximumHeartRate || 0)),
+  }));
+  data.getColumn("target").numFmt = "0%";
+  data.autoFilter = { from: "A1", to: "E1" };
+  data.views = [{ state: "frozen", ySplit: 1 }];
+  if (item.workoutSegments?.length) {
+    const route = workbook.addWorksheet("Recorrido");
+    route.columns = [
+      { header: "Tramo", key: "index", width: 10 }, { header: "Nombre", key: "name", width: 28 },
+      { header: "Duración (min)", key: "minutes", width: 18 }, { header: "% inicial", key: "start", width: 14 },
+      { header: "% final", key: "end", width: 14 },
+    ];
+    route.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    route.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF111411" } };
+    item.workoutSegments.forEach((segment, index) => route.addRow({ index: index + 1, name: segment.name, minutes: segment.minutes, start: segment.startPercent / 100, end: segment.endPercent / 100 }));
+    route.getColumn("start").numFmt = "0%";
+    route.getColumn("end").numFmt = "0%";
+    route.autoFilter = { from: "A1", to: "E1" };
+    route.views = [{ state: "frozen", ySplit: 1 }];
+  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  const safeName = `${item.userName || "usuario"}-${item.circuit}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9-]+/g, "-").toLowerCase();
+  anchor.href = url;
+  anchor.download = `spinzone-${safeName}-${item.date.slice(0, 10)}.xlsx`;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

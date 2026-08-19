@@ -162,7 +162,7 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .history-header h2 { margin: 6px 0; font-size: 32px; }
 .history-header p, .history-empty { color: var(--muted); }
 .history-empty { padding: 36px 24px; }
-.history-list article { display: grid; grid-template-columns: 2fr repeat(3, 1fr) 110px; gap: 20px; align-items: center; padding: 18px 24px; border-bottom: 1px solid #282c28; }
+.history-list article { display: grid; grid-template-columns: 2fr repeat(3, 1fr) 100px 110px; gap: 16px; align-items: center; padding: 18px 24px; border-bottom: 1px solid #282c28; }
 .history-list article > div { display: flex; flex-direction: column; gap: 5px; }
 .history-list article > div small { color: var(--muted); text-transform: uppercase; }
 .history-list article > span { font-size: 20px; font-weight: 900; }
@@ -170,6 +170,17 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
 .history-list article > b { padding: 7px 9px; border-radius: 99px; font-size: 10px; text-align: center; text-transform: uppercase; }
 .history-list .completed { color: #a9f78c; background: #1d3817; }
 .history-list .stopped { color: #ffc079; background: #3b2610; }
+.history-detail-button { padding: 8px 10px; border: 1px solid #42533c; border-radius: 9px; background: #1a2418; color: #b7ff30; font-size: 11px; font-weight: 900; }
+.history-detail { padding: 20px 24px 24px; border-bottom: 1px solid #344030; background: #0b0e0b; }
+.history-detail > p { margin: 0; color: var(--muted); }
+.history-chart-title { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.history-chart-title span { color: var(--muted); font-size: 11px; }
+.history-chart svg { display: block; width: 100%; height: 220px; overflow: visible; }
+.history-chart svg line { stroke: #313831; stroke-width: 1; }
+.history-chart svg rect { fill: #1db7d8; opacity: .85; }
+.history-chart svg polyline { fill: none; stroke: #b7ff30; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.history-chart svg text { fill: #9ca399; font-size: 13px; }
+.excel-button { margin-top: 14px; padding: 10px 13px; border: 1px solid #54752d; border-radius: 9px; background: #b7ff30; color: #0b1008; font-weight: 900; }
 .onboarding-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; overflow-y: auto; background: #050705e8; backdrop-filter: blur(12px); }
 .onboarding-card { width: min(440px, 100%); max-height: calc(100dvh - 36px); padding: 28px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #3a4138; border-radius: 24px; background: #111411; box-shadow: 0 30px 100px #000c; }
 .onboarding-card h2 { margin: 8px 0 10px; font-size: 30px; line-height: 1.05; }
@@ -213,6 +224,9 @@ h1 { margin: 8px 0 0; font-size: clamp(32px, 5vw, 62px); line-height: .96; lette
   .duration { text-align: left; }
   .history-list article { grid-template-columns: 1fr 1fr; }
   .history-list article > div { grid-column: span 2; }
+  .history-detail-button { min-height: 40px; }
+  .history-chart-title { flex-direction: column; gap: 4px; }
+  .history-chart svg { height: 170px; }
   .planned-profile { padding-left: 68px; }
   .segment-duration-strip { left: 68px; }
   .target-profile-line { left: 68px; width: calc(100% - 76px); }
